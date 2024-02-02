@@ -2,6 +2,10 @@
 
 Continuously monitor multiple audio and video streams for both connection and content problems. Get alerts.
 
+![streammonitor screenshot](http://smcgrath.com/hosted_images/streammon_screenshot1.png)
+
+![streammonitor screenshot](http://smcgrath.com/hosted_images/streammon_screenshot2.png)
+
 ## Alert conditions - video
 
 Besides an interruption in the actual stream connection, the following conditions are recognized and cause an alert:
