@@ -22,7 +22,7 @@ if [ "$response" != "y" ]; then
     exit 1
 fi
 
-echo "Reconfiguring timezone..."
+echo "Configuring timezone..."
 sudo dpkg-reconfigure tzdata
 
 # Do you want to automatically install dependencies?
@@ -33,8 +33,14 @@ else
 echo "Installing dependencies..."
     sudo apt-get install python3 python3-pip python-is-python3 gnupg curl php \
         software-properties-common gnupg apt-transport-https ca-certificates \
-        git nano iputils-ping ffmpeg \
+        git nano iputils-ping ffmpeg zip unzip php-zip \
         -y
+
+    curl -fsSL https://pgp.mongodb.com/server-7.0.asc |  sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
+    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+    deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse
+    sudo apt update
+    sudo apt install mongodb-org -y
 
     # Install python dependencies for the normal user and for root
     python3 -m pip install apprise
@@ -50,7 +56,7 @@ echo "${CURRENT_DIRECTORY}/public_html"
 mkdir -p public_html/logs
 echo "Setting ownership and permissions..."
 # sudo chown -R www-data:www-data ${CURRENT_DIRECTORY}/public_html
-sudo chmod -R 755 ${CURRENT_DIRECTORY}/public_html
+sudo chmod -R 755 "${CURRENT_DIRECTORY}/public_html"
 
 
 
@@ -67,10 +73,10 @@ echo "
     ServerAdmin webmaster@your_website_name.com
     ServerName ${DNS_NAME}
     ServerAlias www.${DNS_NAME}
-    DocumentRoot ${CURRENT_DIRECTORY}/public_html
+    DocumentRoot \"${CURRENT_DIRECTORY}/public_html\"
     DirectoryIndex index.php index.html
 
-    <Directory "${CURRENT_DIRECTORY}/public_html">
+    <Directory \"${CURRENT_DIRECTORY}/public_html\">
         AllowOverride all
         Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
         Require all granted
@@ -145,8 +151,8 @@ fi
 
 
 # Install mongodb library
-${CURRENT_DIRECTORY}/composer.phar require mongodb/mongodb --ignore-platform-reqs
-${CURRENT_DIRECTORY}/composer.phar require jenssegers/mongodb --ignore-platform-reqs
+"${CURRENT_DIRECTORY}/composer.phar" require mongodb/mongodb --ignore-platform-reqs
+"${CURRENT_DIRECTORY}/composer.phar" require jenssegers/mongodb --ignore-platform-reqs
 
 echo "Enter the MongoDB connection string (default: mongodb://localhost:27017/?authSource=admin&readPreference=primary&ssl=false)"
 echo "or Press ENTER to accept default:\n"
@@ -161,7 +167,7 @@ echo "WARNING: This will overwrite any existing data in the database and reset u
 read -r LOAD_INITIAL_DATA
 if [ "$LOAD_INITIAL_DATA" = "y" ]; then
     echo "Loading initial database data..."
-    mongoimport --db $MONGO_DATABASE_NAME --file ${CURRENT_DIRECTORY}/mongodb_init
+    mongoimport --db $MONGO_DATABASE_NAME --file "${CURRENT_DIRECTORY}/mongodb_init"
     MONGO_DATABASE_NAME="streammon"
 else
 
@@ -211,8 +217,8 @@ echo "Type=simple" >> streammon_supervisor.service
 echo "User=$CURRENT_USERNAME" >> streammon_supervisor.service
 echo "Group=$CURRENT_GROUPNAME" >> streammon_supervisor.service
 echo "Restart=always" >> streammon_supervisor.service
-echo "WorkingDirectory=$CURRENT_DIRECTORY" >> streammon_supervisor.service
-echo "ExecStart=/usr/bin/python3 $CURRENT_DIRECTORY/streammon_supervisor.py" >> streammon_supervisor.service
+echo "WorkingDirectory=\"$CURRENT_DIRECTORY\"" >> streammon_supervisor.service
+echo "ExecStart=/usr/bin/python3 \"$CURRENT_DIRECTORY/streammon_supervisor.py\"" >> streammon_supervisor.service
 echo "[Install]" >> streammon_supervisor.service
 echo "WantedBy=multi-user.target" >> streammon_supervisor.service
 
