@@ -33,7 +33,7 @@ else
 echo "Installing dependencies..."
     sudo apt-get install python3 python3-pip python-is-python3 gnupg curl php \
         software-properties-common gnupg apt-transport-https ca-certificates \
-        git nano iputils-ping ffmpeg zip unzip php-zip python-pymongo python3-pil\
+        git nano iputils-ping ffmpeg zip unzip php-zip python3-pymongo python3-pil\
         php-mbstring php-dev php-pear composer \
         -y
 
