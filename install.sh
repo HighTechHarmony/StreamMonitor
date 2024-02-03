@@ -50,14 +50,19 @@ echo "Installing dependencies..."
     sudo python3 -m pip install psutil
 fi
 
+echo "Starting mongodb..."
+sudo systemctl start mongod
+
 echo ""
 echo ""
 echo "Creating folders..."
 echo "${CURRENT_DIRECTORY}/public_html"
 mkdir -p public_html/logs
 echo "Setting ownership and permissions..."
-# sudo chown -R www-data:www-data ${CURRENT_DIRECTORY}/public_html
+sudo chown -R www-data:www-data ${CURRENT_DIRECTORY}/public_html
 sudo chmod -R 755 "${CURRENT_DIRECTORY}/public_html"
+# Need to add a+x permission to the directory and all parent directories
+# so that apache can traverse the directory
 
 
 
