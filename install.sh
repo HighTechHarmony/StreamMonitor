@@ -33,7 +33,8 @@ else
 echo "Installing dependencies..."
     sudo apt-get install python3 python3-pip python-is-python3 gnupg curl php \
         software-properties-common gnupg apt-transport-https ca-certificates \
-        git nano iputils-ping ffmpeg zip unzip php-zip \
+        git nano iputils-ping ffmpeg zip unzip php-zip python-pymongo python3-pil\
+        php-mbstring php-dev php-pear composer \
         -y
 
     curl -fsSL https://pgp.mongodb.com/server-7.0.asc |  sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
@@ -217,7 +218,7 @@ echo "Type=simple" >> streammon_supervisor.service
 echo "User=$CURRENT_USERNAME" >> streammon_supervisor.service
 echo "Group=$CURRENT_GROUPNAME" >> streammon_supervisor.service
 echo "Restart=always" >> streammon_supervisor.service
-echo "WorkingDirectory=\"$CURRENT_DIRECTORY\"" >> streammon_supervisor.service
+echo "WorkingDirectory=$CURRENT_DIRECTORY" >> streammon_supervisor.service
 echo "ExecStart=/usr/bin/python3 \"$CURRENT_DIRECTORY/streammon_supervisor.py\"" >> streammon_supervisor.service
 echo "[Install]" >> streammon_supervisor.service
 echo "WantedBy=multi-user.target" >> streammon_supervisor.service
