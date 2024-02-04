@@ -17,6 +17,8 @@ echo "Detected directory: $CURRENT_DIRECTORY"
 
 echo "Do you want to continue? (y/n)"
 read -r response
+# examine the response in a case insensitive manner
+response=$(echo "$response" | tr '[:upper:]' '[:lower:]')
 if [ "$response" != "y" ]; then
     echo "Aborting..."
     exit 1
@@ -27,6 +29,8 @@ sudo dpkg-reconfigure tzdata
 
 # Do you want to automatically install dependencies?
 read -r -p "Do you want me to try to automatically install dependencies? (Y/n) " install_dependencies_auto
+# examine the response in a case insensitive manner
+install_dependencies_auto=$(echo "$install_dependencies_auto" | tr '[:upper:]' '[:lower:]')
 if [ "$install_dependencies_auto" = "n" ]; then
     echo "Skipping automatic dependency installation..."
 else
@@ -71,6 +75,8 @@ echo ""
 echo ""
 echo "Enter the DNS name of the apache virtual host you want to create (e.g. streammon.local)"
 read -r DNS_NAME
+# examine the response in a case insensitive manner
+DNS_NAME=$(echo "$DNS_NAME" | tr '[:upper:]' '[:lower:]')
 echo "Creating apache virtual host..."
 echo ""
 echo ""
@@ -96,12 +102,8 @@ sudo a2ensite ${DNS_NAME}.conf
 sudo systemctl restart apache2
 
 
-
-
 # Install composer
 echo "Installing composer..."
-echo ""
-echo ""
 
 EXPECTED_CHECKSUM="$(php -r 'copy("https://composer.github.io/installer.sig", "php://stdout");')"
 php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
@@ -126,7 +128,10 @@ else
     echo "Composer installation succeeded."
 fi
 
+
 # Install mongodb extension
+echo ""
+echo ""
 echo "Installing mongodb extension..."
 sudo pecl install mongodb
 
@@ -155,43 +160,69 @@ else
     echo "extension=mongodb.so" | sudo tee -a "$PHP_INI_FILE"    
 fi
 
+echo "Do you want to (re)install the mongodb library driver? (Y/n)"
+read -r INSTALL_MONGODB_LIBRARY
+# examine the response in a case insensitive manner
+INSTALL_MONGODB_LIBRARY=$(echo "$INSTALL_MONGODB_LIBRARY" | tr '[:upper:]' '[:lower:]')
+if [ "$INSTALL_MONGODB_LIBRARY" != "n" ]; then
+    echo "Installing mongodb library..."
+    "${CURRENT_DIRECTORY}/composer.phar" require mongodb/mongodb --ignore-platform-reqs
+    "${CURRENT_DIRECTORY}/composer.phar" require jenssegers/mongodb --ignore-platform-reqs
+else
+    echo "Skipping mongodb library installation..."
+fi
 
-# Install mongodb library
-"${CURRENT_DIRECTORY}/composer.phar" require mongodb/mongodb --ignore-platform-reqs
-"${CURRENT_DIRECTORY}/composer.phar" require jenssegers/mongodb --ignore-platform-reqs
-
+echo ""
+echo ""
 echo "Enter the MongoDB connection string (default: mongodb://localhost:27017/?authSource=admin&readPreference=primary&ssl=false)"
 echo "or Press ENTER to accept default:\n"
 read -r MONGO_CONNECTION_STRING
+# examine the response in a case insensitive manner
+MONGO_CONNECTION_STRING=$(echo "$MONGO_CONNECTION_STRING" | tr '[:upper:]' '[:lower:]')
 if [ -z "$MONGO_CONNECTION_STRING" ]; then
     MONGO_CONNECTION_STRING="mongodb://localhost:27017/?authSource=admin&readPreference=primary&ssl=false"
 fi
 
+echo "Enter the MongoDB database name (default: streammon)"
+echo "or Press ENTER to accept default:\n"
+read -r MONGO_DATABASE_NAME
+# examine the response in a case insensitive manner
+MONGO_DATABASE_NAME=$(echo "$MONGO_DATABASE_NAME" | tr '[:upper:]' '[:lower:]')
+# If the user response has no alphanumeric characters, or contains only an enter, use the default
+if [ -z "$MONGO_DATABASE_NAME" ]; then
+    echo "Using default database name: streammon"
+    MONGO_DATABASE_NAME="streammon"
+else 
+    echo "Using user-provided database name: $MONGO_DATABASE_NAME"
+fi
 
-echo "Do you want to load initial database data? (y/N) "
+echo ""
+echo ""
+echo "Do you want to load initial database data? (Y/n) "
 echo "WARNING: This will overwrite any existing data in the database and reset user login to the default"
 read -r LOAD_INITIAL_DATA
-if [ "$LOAD_INITIAL_DATA" = "y" ]; then
-    echo "Loading initial database data..."
-    mongorestore --db $MONGO_DATABASE_NAME  "${CURRENT_DIRECTORY}/mongodb_init/"
-    MONGO_DATABASE_NAME="streammon"
+# examine the response in a case insensitive manner
+LOAD_INITIAL_DATA=$(echo "$LOAD_INITIAL_DATA" | tr '[:upper:]' '[:lower:]')
+if [ "$LOAD_INITIAL_DATA" != "n" ]; then
+    echo "Loading initial database data..."    
+    echo "Command: mongorestore --db ${MONGO_DATABASE_NAME}  \"${CURRENT_DIRECTORY}/mongodb_init/streammon/\""
+    mongorestore --db ${MONGO_DATABASE_NAME}  "${CURRENT_DIRECTORY}/mongodb_init/streammon/"
+    
 else
 
     echo "Skipping initial database data load..."
-    echo "Enter the MongoDB database name (default: streammon)"
-    echo "or Press ENTER to accept default:\n"
-    read -r MONGO_DATABASE_NAME
-    if [ -z "$MONGO_DATABASE_NAME" ]; then
-        MONGO_DATABASE_NAME="streammon"
-    fi
 fi
 
 # Create an inital config.py file
 # if there is already a config.py file, ask if the user wants to overwrite it
+echo ""
+echo ""
 if [ -f "config.py" ]; then
-    echo "A config.py file already exists.  Do you want to overwrite it? (y/N)"
+    echo "A config.py file already exists.  Do you want to overwrite it? (Y/n)"
     read -r OVERWRITE_CONFIG
-    if [ "$OVERWRITE_CONFIG" = "y" ]; then
+    # examine the response in a case insensitive manner
+    OVERWRITE_CONFIG=$(echo "$OVERWRITE_CONFIG" | tr '[:upper:]' '[:lower:]')
+    if [ "$OVERWRITE_CONFIG" != "n" ]; then
         echo "Creating config.py file..."
 
         echo "# Automatically generated by install.sh" > config.py
@@ -228,9 +259,11 @@ echo "ExecStart=/usr/bin/python3 \"$CURRENT_DIRECTORY/streammon_supervisor.py\""
 echo "[Install]" >> streammon_supervisor.service
 echo "WantedBy=multi-user.target" >> streammon_supervisor.service
 
-echo "Do you want to install the systemd service unit and enable it? (y/N)"
+echo "Do you want to install the systemd service unit and enable it? (Y/n)"
 read -r INSTALL_SYSTEMD
-if [ "$INSTALL_SYSTEMD" = "y" ]; then
+# examine the response in a case insensitive manner
+INSTALL_SYSTEMD=$(echo "$INSTALL_SYSTEMD" | tr '[:upper:]' '[:lower:]')
+if [ "$INSTALL_SYSTEMD" != "n" ]; then
     echo "Installing systemd service unit..."
     sudo cp streammon_supervisor.service /etc/systemd/system
     sudo systemctl daemon-reload
