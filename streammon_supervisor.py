@@ -205,12 +205,12 @@ def restart_monitor(stream_uri, stream_desc, audio_only=0):
     result=users_collection.find()    
     for i in result:
         # If there is an actual pushover key, and notification is enabled...
-        if len(str(i["pushover"])) > 0 and i["enabled"] == "1":         
+        if len(str(i["pushover_id"])) > 0 and i["enabled"] == "1":         
             pushover_list.append(" --pushover ")
             pushover_list.append(i["pushover_id"]+"@"+i["pushover_token"])
         else: 
-            print ("Skipping " + i["pushover"] + " with length: ")
-            print (len(str(i["pushover"])))
+            print ("Skipping " + i["pushover_id"] + " with length: ")
+            print (len(str(i["pushover_id"])))
             print ("enabled = " + str(i["enabled"]))
     pushover_string =  "".join(pushover_list)
     
