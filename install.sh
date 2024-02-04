@@ -58,11 +58,11 @@ echo ""
 echo "Creating folders..."
 echo "${CURRENT_DIRECTORY}/public_html"
 mkdir -p public_html/logs
-echo "Setting ownership and permissions..."
-sudo chown -R www-data:www-data ${CURRENT_DIRECTORY}/public_html
+echo "Setting ownership and permissions for apache..."
+sudo chown -R :www-data ${CURRENT_DIRECTORY}/public_html
 sudo chmod -R 755 "${CURRENT_DIRECTORY}/public_html"
-# Need to add a+x permission to the directory and all parent directories
-# so that apache can traverse the directory
+echo "You may additionally need to add a+x permission to this directory and parent directories"
+echo "so that apache can traverse the directory"
 
 
 
