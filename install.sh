@@ -173,7 +173,7 @@ echo "WARNING: This will overwrite any existing data in the database and reset u
 read -r LOAD_INITIAL_DATA
 if [ "$LOAD_INITIAL_DATA" = "y" ]; then
     echo "Loading initial database data..."
-    mongoimport --db $MONGO_DATABASE_NAME --file "${CURRENT_DIRECTORY}/mongodb_init"
+    mongorestore --db $MONGO_DATABASE_NAME  "${CURRENT_DIRECTORY}/mongodb_init/"
     MONGO_DATABASE_NAME="streammon"
 else
 
