@@ -80,7 +80,18 @@ install.sh attempts to:
 
 WARNING: MongoDB is installed with no authentication, so you need to secure it.
 
-There are some things it might not do well yet, but reading it can give you a better overview of what's needed, if nothing else. Tasks the install.sh script doesn't accomplish for you:
+To install the system, follow these steps:
+
+- Create a new folder on your system
+- cd into it
+- clone the repository using `git clone (repo url)`
+- run `./install.sh` as the user you wish the instance to run as.
+
+The install script aims to compartmentalize the files necessary to run the instance as much as possible. Only when absolutely necessary are files copied outside of the installation directory. Specifically, this concerns the apache2 virtualhost configuration file, and systemd service unit.
+
+There are some things the install.sh script might not do well yet, but reading it can give you a better overview of what's needed, if nothing else.
+
+Tasks the install.sh script doesn't accomplish for you:
 
 - Disabling the default apache virtualhost (to do this, type: `a2dissite 000-default.conf` as root)
 - Apply execute permission to parent directories (to do this, type: `chmod a+x` on the installation directory and all of its parent directories, up to the root level)
@@ -147,3 +158,17 @@ The primary components involved with putting the system into operation, or to st
 Checking the running status of the supervisor process can be done as follows:
 
 `ps ax|grep streammon_supervisor.py`
+
+## Updating
+
+At this time, there is no update script yet. Therefore the recommended procedure is as follows:
+
+- Apply updates to your OS as usual (e.g. apt update; apt dist-upgrade)
+- Backup your existing installation folder (`mv streammonitor streammonitor.bak`, replace with your custom name if you have changed it)
+- Clone the latest repository
+- cd into the folder (default is: `streammonitor`)
+- Run the install.sh script: `./install.sh`
+- Do NOT load the inital mongodb data! (select 'n' when asked)
+- Do NOT overwrite your config.py file if you have made customizations (select 'n' when asked)
+
+Besides that, it should be safe to accept all of the rest of the defaults unless, of course, you have made custom entries to the directory, name, user, etc. It should be safe to install the prerequisites again, which will ensure that you have any new ones associated with the latest version. Once the install is complete, you should be up and running! However, a reboot is recommended.
