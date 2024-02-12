@@ -141,9 +141,9 @@ This can be a challenge. Some basics for a Debian/Ubuntu system:
 
 `composer require jenssegers/mongodb --ignore-platform-reqs`
 
-### Modify the generated config.py and fill in your connection string and pushover token default, like this:
+### Create or modify config.py and fill in your connection string and pushover token default, like this:
 
-You need to make a config.py file in order for anything to work. Here is an example config.py file.
+You need to make a config.py file in order for anything to work. Copy config.py.example file and modify as needed. It generally looks like this but may change with future revisions so consider config.py.example a better template.
 
 ```
 CONNECTION_STRING = "mongodb://localhost:port/?authSource=admin&readPreference=primary&ssl=false"

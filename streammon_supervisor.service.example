@@ -1,0 +1,12 @@
+[Unit]
+Description=Stream Monitor Supervisor
+After=multi-user.target
+[Service]
+Type=simple
+User=scott
+Group=scott
+Restart=always
+WorkingDirectory=/home/scott/streammon
+ExecStart=/usr/bin/python3 /home/scott/streammon/streammon_supervisor.py
+[Install]
+WantedBy=multi-user.target
