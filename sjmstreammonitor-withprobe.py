@@ -317,7 +317,11 @@ else:
 FFMPEG = "/usr/bin/ffmpeg"
 
 # This adds Freezeframe and blackframe detection for video (aka non-audio_only)
+
+# logging.info("AUDIO_ONLY is " + str(AUDIO_ONLY))
+
 if AUDIO_ONLY != 1:
+    # logging.info("Adding blackdetect and freezedetect to FFMPEG_ARGS")
     FFMPEG_ARGS = "-loglevel repeat+level+debug -vf \"blackdetect=d=0:pix_th=0.10,blackframe=amount=98:threshold="+str(BLACKFRAME_THRESHOLD)+"\""
     if int(FREEZETIME_SECONDS_ALLOWED) > 0:
         logging.info("Freezeframe alerting enabled")
@@ -326,7 +330,12 @@ if AUDIO_ONLY != 1:
         logging.info("Freezeframe alerting disabled (duration was 0)")
 
 # Add audio silence monitoring for video and audio
-FFMPEG_ARGS = " -af silencedetect=noise="+str(SILENCE_THRESHOLD)+"dB:d="+str(SILENCE_DURATION)+"  -max_muxing_queue_size 9999 -f null -"
+FFMPEG_ARGS = FFMPEG_ARGS + " -af silencedetect=noise="+str(SILENCE_THRESHOLD)+"dB:d="+str(SILENCE_DURATION)
+
+# Add max muxing queue size, output receive to null, and output messages to stdout
+FFMPEG_ARGS = FFMPEG_ARGS + "  -max_muxing_queue_size 9999 -f null -"
+
+#FFMPEG_ARGS = " -af silencedetect=noise="+str(SILENCE_THRESHOLD)+"dB:d="+str(SILENCE_DURATION)+"  -max_muxing_queue_size 9999 -f null -"
 
 
 def main():
