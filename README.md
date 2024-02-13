@@ -190,14 +190,14 @@ Checking the running status of the supervisor process can be done as follows:
 
 ## Updating
 
-At this time, there is no update script yet. Therefore the recommended procedure is as follows:
+Updating procedure is as follows:
 
 - Apply updates to your OS as usual (e.g. apt update; apt dist-upgrade)
 - Backup your existing installation folder (`mv streammonitor streammonitor.bak`, replace with your custom name if you have changed it)
-- Clone the latest repository
+- Clone the latest repository: git clone <repo URL>
 - cd into the folder (default is: `streammonitor`)
 - Run the install.sh script: `./install.sh`
 - Do NOT load the inital mongodb data! (select 'n' when asked)
-- Do NOT overwrite your config.py file if you have made customizations (select 'n' when asked)
+- Do NOT overwrite your config.py file if you have made customizations (select 'n' when asked, then you can manually resolve differences referring to the newest config.py.example)
 
 Besides that, it should be safe to accept all of the rest of the defaults unless, of course, you have made custom entries to the directory, name, user, etc. It should be safe to install the prerequisites again, which will ensure that you have any new ones associated with the latest version. Once the install is complete, you should be up and running! However, a reboot is recommended.

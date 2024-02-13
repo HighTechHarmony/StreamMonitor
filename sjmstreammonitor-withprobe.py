@@ -25,9 +25,9 @@ import io
 
 from pymongo import MongoClient
 import pymongo
-from config import MONGO_CONNECTION_STRING, OPERATING_DIRECTORY, MONGO_DATABASE_NAME
+from config import MONGO_CONNECTION_STRING, OPERATING_DIRECTORY, MONGO_DATABASE_NAME, ALERTS_DISABLED
 
-PROGRAM_VERSION = "1.02"
+PROGRAM_VERSION = "1.0.3"
 
 # Apprise is a notification framework that supports, among many other things, Pushover 
 import apprise
@@ -211,8 +211,7 @@ last_frame = 0
 watching_stale_frames = 0
 stale_frame_start_time = 0
 stale_frames_in_progress = 0
-stream_down_in_progress = 0
-alerts_disabled = 0 # Alerts start disabled until ramp up time is over
+
 
 # Get ready to bring the logger online
 # Since logging depends on the stream description, we will start with that
@@ -316,20 +315,34 @@ else:
 # Define the FFMPEG stream monitor command
 FFMPEG = "/usr/bin/ffmpeg"
 
-# This adds Freezeframe and blackframe detection for video (aka non-audio_only)
 
-# logging.info("AUDIO_ONLY is " + str(AUDIO_ONLY))
+
+
+
+# Define the FFMPEG_ARGS which will hold all of the arguments necessary to support the requested monitoring features
+FFMPEG_ARGS = ""
 
 if AUDIO_ONLY != 1:
+    # This section deals with adding Freezeframe and blackframe detection for video (aka non-audio_only)
     # logging.info("Adding blackdetect and freezedetect to FFMPEG_ARGS")
-    FFMPEG_ARGS = "-loglevel repeat+level+debug -vf \"blackdetect=d=0:pix_th=0.10,blackframe=amount=98:threshold="+str(BLACKFRAME_THRESHOLD)+"\""
+    # The below line may not be necessary but makes the logs much more noisy. With some experimentation, it may be possible to remove it.
+    # But I can't remember if there is a message we need that only appears with it on.
+    FFMPEG_ARGS = " -loglevel repeat+level+debug"  
+
+    # Add video filter argument
+    FFMPEG_ARGS = FFMPEG_ARGS + " -vf "
+
+    # Add blackdetect video filter
+    FFMPEG_ARGS = FFMPEG_ARGS + "blackdetect=d=0:pix_th=0.10,blackframe=amount=98:threshold="+str(BLACKFRAME_THRESHOLD)
+
+    # Add freezedetect video filter
     if int(FREEZETIME_SECONDS_ALLOWED) > 0:
         logging.info("Freezeframe alerting enabled")
         FFMPEG_ARGS = FFMPEG_ARGS +",freezedetect=noise="+str(FREEZE_NOISE_THRESHOLD)+"dB:duration=" + str(FREEZETIME_SECONDS_ALLOWED)
     else:
         logging.info("Freezeframe alerting disabled (duration was 0)")
 
-# Add audio silence monitoring for video and audio
+# Add audio silence monitoring (for both video and audio)
 FFMPEG_ARGS = FFMPEG_ARGS + " -af silencedetect=noise="+str(SILENCE_THRESHOLD)+"dB:d="+str(SILENCE_DURATION)
 
 # Add max muxing queue size, output receive to null, and output messages to stdout
@@ -339,6 +352,23 @@ FFMPEG_ARGS = FFMPEG_ARGS + "  -max_muxing_queue_size 9999 -f null -"
 
 
 def main():
+    
+    global alerts_disabled
+    global alerts_hard_disabled
+    global stream_down_in_progress
+    
+    alerts_hard_disabled = ALERTS_DISABLED
+    alerts_disabled = alerts_hard_disabled
+    stream_down_in_progress = 0
+
+    if (ALERTS_DISABLED == 1):
+        logging.info ("Alerts are hard-disabled by configuration.")
+        alerts_hard_disabled = 1
+        alerts_disabled = 1
+    else:
+        alerts_disabled=0
+        alerts_hard_disabled=0
+
 
     # Okay, time for action - we launch the stream monitor via the analyze function
 
@@ -583,21 +613,14 @@ def analyze(stream):
     logging.info("Analyzing " + stream)    
     
     # analyzeproc = run(analyzeq, FFMPEG + " -i " + stream + " " + FFMPEG_ARGS, "analyzethread")
-    ffmpeg_command = FFMPEG + " -i " + stream + " " + FFMPEG_ARGS
+    ffmpeg_command = FFMPEG + " -report" + " -i " + stream + " " + FFMPEG_ARGS
 
     # Remove quotes from ffmpeg command
     # ffmpeg_command = ffmpeg_command.replace('"', '')
     logging.info("Running ffmpeg command: " + str(ffmpeg_command))
     # Convert the command to an array of strings
     ffmpeg_command = ffmpeg_command.split()
-    # logging.info("ffmpeg command after split(): " + str(ffmpeg_command))
-
-    # FIXME: in short, ffmpeg doesn't like something about providing the args as a list.  It's not working.
-    # Error is:  No such filter: '"silencedetect' 
-    # Error reinitializing filters!
-    # Failed to inject frame into filter network: Invalid argument
-    # Error while processing the decoded data for stream #0:1
-    # Conversion failed!
+    logging.info("ffmpeg command after split(): " + str(ffmpeg_command))
 
     analyzeproc = launch_process_to_q(ffmpeg_command, analyzeq)
     logging.info("Launched analyze process with pid " + str(analyzeproc.pid))
@@ -606,11 +629,8 @@ def analyze(stream):
     start_time=time.time()
     last_probe_time = time.time() + RAMPUP_TIME
 
+    # This loop continues as long as the ffmpeg process is running as expected
     while (True):
-        # This whole piece kind of needs to be overhauled since the switch to Python3.  
-        # As it is, It doesn't seem to get anything from ffmpeg and pass it to the queue. 
-        # The queue just stays empty.  I think I need to revisit how to use queues in python3
-        # because it may have changed.
 
         # Make sure line is empty as a bytes object
         line = ""
@@ -624,6 +644,7 @@ def analyze(stream):
 
         except KeyboardInterrupt:
             # Disable alerts
+            logging.info("Alerts disabled for keyboard interrupt")
             alerts_disabled=1
             analyzeproc.kill()
             return False
@@ -807,7 +828,8 @@ def analyze(stream):
     
 # Send given message to Apprise system
 def send_message(msg):
-    if not alerts_disabled:
+    logging.info ("alerts_disabled: " + str(alerts_disabled) + " alerts_hard_disabled: " + str(alerts_hard_disabled))
+    if not alerts_disabled and not alerts_hard_disabled:
         logging.info ("INIT SENDING ALERT: ")
         subj = stream_desc + ":"
         logging.info (subj + " " + msg)

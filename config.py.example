@@ -3,3 +3,4 @@ MONGO_CONNECTION_STRING = "mongodb://localhost:27017/?authSource=admin&readPrefe
 MONGO_DATABASE_NAME = "streammon"
 OPERATING_DIRECTORY = "/home/scott/streammon"
 USER = "scott"
+ALERTS_DISABLED = 0
