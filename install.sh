@@ -230,6 +230,7 @@ if [ -f "config.py" ]; then
         echo "MONGO_DATABASE_NAME = \"$MONGO_DATABASE_NAME\"" >> config.py
         echo "OPERATING_DIRECTORY = \"$CURRENT_DIRECTORY\"" >> config.py
         echo "USER = \"$CURRENT_USERNAME\"" >> config.py
+        echo "ALERTS_DISABLED = 0" >> config.py
     else
         echo "Skipping config.py file generation..."
     fi
