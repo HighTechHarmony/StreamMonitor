@@ -4,3 +4,4 @@ MONGO_DATABASE_NAME = "streammon"
 OPERATING_DIRECTORY = "/home/scott/streammon"
 USER = "scott"
 ALERTS_DISABLED = 0
+STREAMDOWN_ALERTS_DISABLED = 0

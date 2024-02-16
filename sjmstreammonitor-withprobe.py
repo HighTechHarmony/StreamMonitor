@@ -25,7 +25,7 @@ import io
 
 from pymongo import MongoClient
 import pymongo
-from config import MONGO_CONNECTION_STRING, OPERATING_DIRECTORY, MONGO_DATABASE_NAME, ALERTS_DISABLED
+from config import MONGO_CONNECTION_STRING, OPERATING_DIRECTORY, MONGO_DATABASE_NAME, ALERTS_DISABLED, STREAMDOWN_ALERTS_DISABLED
 
 PROGRAM_VERSION = "1.0.3"
 
@@ -355,9 +355,11 @@ def main():
     
     global alerts_disabled
     global alerts_hard_disabled
+    global streamdown_alerts_hard_disabled
     global stream_down_in_progress
     
     alerts_hard_disabled = ALERTS_DISABLED
+    streamdown_alerts_hard_disabled = STREAMDOWN_ALERTS_DISABLED
     alerts_disabled = alerts_hard_disabled
     stream_down_in_progress = 0
 
@@ -376,7 +378,10 @@ def main():
         logging.info("Stream analyzer could not launch for " + stream + ". sending alert")
         if not stream_down_in_progress:
             stream_down_in_progress = 1
-            send_message("Stream failure for: " + args.stream_uri)        
+            if streamdown_alerts_hard_disabled:
+                logging.info("Skipping alert, stream down alerts are hard-disabled by configuration.")
+            else:
+                send_message("Stream failure for: " + args.stream_uri)        
 
     # If we get here, it's probably because the stream died, or something went wrong (hopefully temporary)
             # This will sleep for the prescribed time and then the process will die

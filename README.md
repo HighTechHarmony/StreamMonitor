@@ -151,6 +151,8 @@ MONGO_CONNECTION_STRING = "mongodb://localhost:27017/?authSource=admin&readPrefe
 MONGO_DATABASE_NAME = "streammon"
 OPERATING_DIRECTORY = "/home/scott/streammon"
 USER = "scott"
+ALERTS_DISABLED = 0
+STREAMDOWN_ALERTS_DISABLED = 0
 ```
 
 ### IMPORTANT: Login and change the default login info
@@ -192,6 +194,7 @@ Checking the running status of the supervisor process can be done as follows:
 
 Updating procedure is as follows:
 
+- Stop the supervisor: `sudo systemctl stop streammonitor_supervisor.service`
 - Apply updates to your OS as usual (e.g. apt update; apt dist-upgrade)
 - Backup your existing installation folder (`mv streammonitor streammonitor.bak`, replace with your custom name if you have changed it)
 - Clone the latest repository: git clone <repo URL>
@@ -199,5 +202,8 @@ Updating procedure is as follows:
 - Run the install.sh script: `./install.sh`
 - Do NOT load the inital mongodb data! (select 'n' when asked)
 - Do NOT overwrite your config.py file if you have made customizations (select 'n' when asked, then you can manually resolve differences referring to the newest config.py.example)
+- You may skip installing prequisites, but you will need to install composer and the mongoDB library driver (NOT THE DATABASE DATA)
 
 Besides that, it should be safe to accept all of the rest of the defaults unless, of course, you have made custom entries to the directory, name, user, etc. It should be safe to install the prerequisites again, which will ensure that you have any new ones associated with the latest version. Once the install is complete, you should be up and running! However, a reboot is recommended.
+
+note: If you are running ssh and the working directory is changed, you will need to manually update the apache ssl config file.
