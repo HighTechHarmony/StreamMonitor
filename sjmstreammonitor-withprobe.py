@@ -619,8 +619,16 @@ def analyze(stream):
 
     logging.info("Analyzing " + stream)    
     
-    # analyzeproc = run(analyzeq, FFMPEG + " -i " + stream + " " + FFMPEG_ARGS, "analyzethread")
-    ffmpeg_command = FFMPEG + " -report" + " -i " + stream + " " + FFMPEG_ARGS
+    # Structure the FFMPEG command that will be run
+    # -report argument generates huge log file, use only for serious debugging
+    ffmpeg_command = (
+        FFMPEG + 
+        # " -report" + 
+        " -i " + 
+        stream + 
+        " " + 
+        FFMPEG_ARGS
+    )
 
     # Remove quotes from ffmpeg command
     # ffmpeg_command = ffmpeg_command.replace('"', '')
