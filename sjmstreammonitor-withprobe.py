@@ -202,6 +202,7 @@ program_start_time = time.time()
 last_framegrab_time = 0
 blackframe_timer_running = 0
 blackframe_last_seen_time = 0
+blackframe_timer = float(0)
 freeze_frame_in_progress = 0
 audio_silent_in_progress = 0
 last_probe_time = 0
@@ -594,6 +595,7 @@ def return_frame_grab():
 def analyze(stream):
     global blackframe_timer_running
     global blackframe_last_seen_time
+    global blackframe_timer
     global program_start_time
     global freeze_frame_in_progress
     global audio_silent_in_progress
@@ -765,15 +767,16 @@ def analyze(stream):
             # logging.info("line is " + line)
             p = re.compile('\[Parsed_blackframe_1.* frame:(\d+).* last_keyframe:(\d+)')            
             if (p.match(line)):
-                # logging.info('blackframe seen')
+                logging.info('blackframe seen')
 
                 # Reset the blackframe_last_seen timer
                 blackframe_last_seen_time = time.time()
 
                 # If the blackframe_timer is (already) running
                 if (blackframe_timer_running):
-                    # Send an alert if it's more than n seconds
-                    if (time.time() - blackframe_timer) > BLACKFRAME_SECONDS_ALLOWED:
+                    logging.info('blackframe_timer: ' + str(round(time.time() - blackframe_timer)))
+                    # Send an alert if it's more than n seconds                    
+                    if (time.time() - blackframe_timer) > float(BLACKFRAME_SECONDS_ALLOWED):
                         # Send an alert if we haven't already
                         if not blackframe_alerted_latch:
                             logging.info("BLACKFRAME DURATION EXCEEDED " + BLACKFRAME_SECONDS_ALLOWED + "sec")
