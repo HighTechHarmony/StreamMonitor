@@ -1,0 +1,3 @@
+[submodule "express_api"]
+	path = express_api
+	url = https://github.com/HighTechHarmony/StreamMonitor_Express_API

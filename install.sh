@@ -231,6 +231,7 @@ if [ -f "config.py" ]; then
         echo "OPERATING_DIRECTORY = \"$CURRENT_DIRECTORY\"" >> config.py
         echo "USER = \"$CURRENT_USERNAME\"" >> config.py
         echo "ALERTS_DISABLED = 0" >> config.py
+        echo "STREAMDOWN_ALERTS_DISABLED = 0" >> config.py
     else
         echo "Skipping config.py file generation..."
     fi
