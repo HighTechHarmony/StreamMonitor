@@ -1,5 +1,6 @@
-[submodule "express_api"]
-	path = express_api
+[submodule "StreamMonitor_React_UI"]
+	path = StreamMonitor_React_UI
+	url = https://github.com/HighTechHarmony/StreamMonitor_React_UI
+[submodule "StreamMonitor_Express_API"]
+	path = StreamMonitor_Express_API
 	url = https://github.com/HighTechHarmony/StreamMonitor_Express_API
-        ignore = dirty
-
