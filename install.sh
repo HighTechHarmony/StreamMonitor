@@ -102,46 +102,61 @@ echo "so that apache can traverse the directory"
 
 # Configure nginx default site
 
-echo "Configuring nginx default site for static files and API proxy..."
-echo "
-server {
-    listen 80;
-    server_name ${DNS_NAME};
 
-    root ${CURRENT_DIRECTORY}/public_html;
-    index index.html;
+read -r -p "Shall I generate a default host for nginx (Y/n) " do_nginx_default
+# examine the response in a case insensitive manner
+do_nginx_default=$(echo "$do_nginx_default" | tr '[:upper:]' '[:lower:]')
+if [ "$do_nginx_default" = "n" ]; then
+    echo "Skipping nginx default site configuration..."
+else
+    echo "Enter the DNS name of the nginx virtual host you want to create (e.g. streammon.local)"
+    read -r DNS_NAME
+    # examine the response in a case insensitive manner
+    DNS_NAME=$(echo "$DNS_NAME" | tr '[:upper:]' '[:lower:')
 
-    location / {
-        try_files $uri /index.html;
+    echo "
+    server {
+        listen 80;
+        server_name ${DNS_NAME};
+
+        root ${CURRENT_DIRECTORY}/public_html;
+        index index.html;
+
+        location / {
+            try_files $uri /index.html;
+        }
+
+        # Proxy configuration for API requests
+        location /protected {
+            proxy_pass http://localhost:5000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        location /auth {
+            proxy_pass http://localhost:5000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        # Log files for debugging
+        error_log /var/log/nginx/error.log;
+        access_log /var/log/nginx/access.log;
     }
+    " > /etc/nginx/sites-available/default
 
-    # Proxy configuration for API requests
-    location /protected {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
+    echo "Restarting nginx..."
+    sudo systemctl restart nginx
+fi
+# End of nginx stuff
 
-    location /auth {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
 
-    # Log files for debugging
-    error_log /var/log/nginx/error.log;
-    access_log /var/log/nginx/access.log;
-}
-" > /etc/nginx/sites-available/default
-
-echo "Restarting nginx..."
-sudo systemctl restart nginx
 
 # # Install composer
 # echo "Installing composer..."
