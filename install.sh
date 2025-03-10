@@ -37,8 +37,7 @@ else
 echo "Installing dependencies..."
     sudo apt-get install python3 python3-pip python-is-python3 gnupg curl nginx \
         software-properties-common gnupg apt-transport-https ca-certificates \
-        git nano iputils-ping ffmpeg zip unzip php-zip python3-pymongo python3-pil\        
-        -y
+        git nano iputils-ping ffmpeg zip unzip python3-pymongo python3-pillow -y
 
     curl -fsSL https://pgp.mongodb.com/server-7.0.asc |  sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
     echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
@@ -47,6 +46,58 @@ echo "Installing dependencies..."
     sudo apt install mongodb-org -y
 
     # Install python dependencies for the normal user and for root
+
+    # Constants
+    VENV_DIR="venv"
+    PYTHON_BIN="python3"
+
+    echo "Starting installation process..."
+
+    # Check if Python 3 is installed
+    if ! command -v $PYTHON_BIN &> /dev/null; then
+        echo "Error: Python 3 is not installed. Please install Python 3 first."
+        exit 1
+    fi
+
+    # Create a virtual environment if it doesn't already exist
+    if [ ! -d "$VENV_DIR" ]; then
+        echo "Creating a virtual environment in $VENV_DIR..."
+        $PYTHON_BIN -m venv $VENV_DIR
+    else
+        echo "Virtual environment already exists at $VENV_DIR."
+    fi
+
+    # Activate the virtual environment
+    echo "Activating the virtual environment..."
+    source "$VENV_DIR/bin/activate"
+
+    # Upgrade pip to the latest version
+    echo "Upgrading pip..."
+    pip install --upgrade pip
+
+    # Install dependencies from requirements.txt
+    if [ -f "requirements.txt" ]; then
+        echo "Installing dependencies from requirements.txt..."
+        pip install -r requirements.txt
+    else
+        echo "Error: requirements.txt not found."
+        deactivate
+        exit 1
+    fi
+
+    # Deactivate the virtual environment
+    echo "Deactivating the virtual environment..."
+    deactivate
+
+    # External Environment Management: Offer workaround for errors
+    if [ ! -z "$(pip list | grep externally-managed-environment)" ]; then
+        echo "Notice: If you encounter the 'externally-managed-environment' error and wish to install directly, run:"
+        echo "       pip install <package-name> --break-system-packages"
+        echo "Or use the provided virtual environment for isolated package management."
+    fi
+
+
+    # Now install the packages all this setup was for.
     python3 -m pip install apprise
     python3 -m pip install psutil
     sudo python3 -m pip install apprise
