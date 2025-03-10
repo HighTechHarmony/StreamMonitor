@@ -35,10 +35,9 @@ if [ "$install_dependencies_auto" = "n" ]; then
     echo "Skipping automatic dependency installation..."
 else
 echo "Installing dependencies..."
-    sudo apt-get install python3 python3-pip python-is-python3 gnupg curl php \
+    sudo apt-get install python3 python3-pip python-is-python3 gnupg curl nginx \
         software-properties-common gnupg apt-transport-https ca-certificates \
-        git nano iputils-ping ffmpeg zip unzip php-zip python3-pymongo python3-pil\
-        php-mbstring php-dev php-pear composer \
+        git nano iputils-ping ffmpeg zip unzip php-zip python3-pymongo python3-pil\        
         -y
 
     curl -fsSL https://pgp.mongodb.com/server-7.0.asc |  sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
@@ -70,107 +69,149 @@ echo "so that apache can traverse the directory"
 
 
 
-# Add an apache virtual host
-echo ""
-echo ""
-echo "Enter the DNS name of the apache virtual host you want to create (e.g. streammon.local)"
-read -r DNS_NAME
-# examine the response in a case insensitive manner
-DNS_NAME=$(echo "$DNS_NAME" | tr '[:upper:]' '[:lower:]')
-echo "Creating apache virtual host..."
-echo ""
-echo ""
+# # Add an apache virtual host
+# echo ""
+# echo ""
+# echo "Enter the DNS name of the apache virtual host you want to create (e.g. streammon.local)"
+# read -r DNS_NAME
+# # examine the response in a case insensitive manner
+# DNS_NAME=$(echo "$DNS_NAME" | tr '[:upper:]' '[:lower:]')
+# echo "Creating apache virtual host..."
+# echo ""
+# echo ""
+# echo "
+# <VirtualHost *:80>
+#     ServerAdmin webmaster@your_website_name.com
+#     ServerName ${DNS_NAME}
+#     ServerAlias www.${DNS_NAME}
+#     DocumentRoot \"${CURRENT_DIRECTORY}/public_html\"
+#     DirectoryIndex index.php index.html
+
+#     <Directory \"${CURRENT_DIRECTORY}/public_html\">
+#         AllowOverride all
+#         Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
+#         Require all granted
+#     </Directory>
+
+# </VirtualHost>" > ${DNS_NAME}.apache.conf
+# sudo cp ${DNS_NAME}.apache.conf /etc/apache2/sites-available/${DNS_NAME}.conf
+
+# # Enable the virtual host configuration and restart Apache
+# sudo a2ensite ${DNS_NAME}.conf
+# sudo systemctl restart apache2
+
+# Configure nginx default site
+
+echo "Configuring nginx default site for static files and API proxy..."
 echo "
-<VirtualHost *:80>
-    ServerAdmin webmaster@your_website_name.com
-    ServerName ${DNS_NAME}
-    ServerAlias www.${DNS_NAME}
-    DocumentRoot \"${CURRENT_DIRECTORY}/public_html\"
-    DirectoryIndex index.php index.html
+server {
+    listen 80;
+    server_name ${DNS_NAME};
 
-    <Directory \"${CURRENT_DIRECTORY}/public_html\">
-        AllowOverride all
-        Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
-        Require all granted
-    </Directory>
+    root ${CURRENT_DIRECTORY}/public_html;
+    index index.html;
 
-</VirtualHost>" > ${DNS_NAME}.apache.conf
-sudo cp ${DNS_NAME}.apache.conf /etc/apache2/sites-available/${DNS_NAME}.conf
+    location / {
+        try_files $uri /index.html;
+    }
 
-# Enable the virtual host configuration and restart Apache
-sudo a2ensite ${DNS_NAME}.conf
-sudo systemctl restart apache2
+    # Proxy configuration for API requests
+    location /protected {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /auth {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Log files for debugging
+    error_log /var/log/nginx/error.log;
+    access_log /var/log/nginx/access.log;
+}
+" > /etc/nginx/sites-available/default
+
+echo "Restarting nginx..."
+sudo systemctl restart nginx
+
+# # Install composer
+# echo "Installing composer..."
+
+# EXPECTED_CHECKSUM="$(php -r 'copy("https://composer.github.io/installer.sig", "php://stdout");')"
+# php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+# ACTUAL_CHECKSUM="$(php -r "echo hash_file('sha384', 'composer-setup.php');")"
+
+# if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]
+# then
+#     >&2 echo 'ERROR: Invalid installer checksum'
+#     rm composer-setup.php
+#     exit 1
+# fi
+
+# php composer-setup.php --quiet
+# RESULT=$?
+# rm composer-setup.php
+
+# # If the exit code is 1, then the installation failed
+# if [ $RESULT -ne 0 ]; then
+#     echo "Composer installation failed.  Aborting..."
+#     exit 1
+# else
+#     echo "Composer installation succeeded."
+# fi
 
 
-# Install composer
-echo "Installing composer..."
+# # Install mongodb extension
+# echo ""
+# echo ""
+# echo "Installing mongodb extension..."
+# sudo pecl install mongodb
 
-EXPECTED_CHECKSUM="$(php -r 'copy("https://composer.github.io/installer.sig", "php://stdout");')"
-php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-ACTUAL_CHECKSUM="$(php -r "echo hash_file('sha384', 'composer-setup.php');")"
+# # Add the mongodb extension to php.ini files
+# # Determine the current php.ini file in use (cli)
+# PHP_INI_FILE="$(php -i | grep 'Loaded Configuration File' | awk '{print $5}')"
+# echo "Detected PHP ini file: $PHP_INI_FILE"
+# echo "Analyzing PHP ini file: $PHP_INI_FILE"
+# # Scan the php.ini file for the mongodb extension and add it if it doesn't exist
+# if grep -q "extension=mongodb.so" "$PHP_INI_FILE"; then
+#     echo "mongodb extension already exists in php.ini file"
+# else
+#     echo "mongodb extension does not exist in php.ini file.  Adding..."
+#     echo "extension=mongodb.so" | sudo tee -a "$PHP_INI_FILE"    
+# fi
 
-if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]
-then
-    >&2 echo 'ERROR: Invalid installer checksum'
-    rm composer-setup.php
-    exit 1
-fi
+# # Determine the current php.ini file in use (apache2)
+# # If it contains the text 'cli', replace it with apache2 assume that is the path to the apache php.ini file
+# PHP_INI_FILE="$(php -i | grep 'Loaded Configuration File' | awk '{print $5}' | sed 's/cli/apache2/')"
+# echo "Analyzing PHP ini file: $PHP_INI_FILE"
+# # Scan the php.ini file for the mongodb extension and add it if it doesn't exist
+# if grep -q "extension=mongodb.so" "$PHP_INI_FILE"; then
+#     echo "mongodb extension already exists in php.ini file"
+# else
+#     echo "mongodb extension does not exist in php.ini file.  Adding..."
+#     echo "extension=mongodb.so" | sudo tee -a "$PHP_INI_FILE"    
+# fi
 
-php composer-setup.php --quiet
-RESULT=$?
-rm composer-setup.php
-
-# If the exit code is 1, then the installation failed
-if [ $RESULT -ne 0 ]; then
-    echo "Composer installation failed.  Aborting..."
-    exit 1
-else
-    echo "Composer installation succeeded."
-fi
-
-
-# Install mongodb extension
-echo ""
-echo ""
-echo "Installing mongodb extension..."
-sudo pecl install mongodb
-
-# Add the mongodb extension to php.ini files
-# Determine the current php.ini file in use (cli)
-PHP_INI_FILE="$(php -i | grep 'Loaded Configuration File' | awk '{print $5}')"
-echo "Detected PHP ini file: $PHP_INI_FILE"
-echo "Analyzing PHP ini file: $PHP_INI_FILE"
-# Scan the php.ini file for the mongodb extension and add it if it doesn't exist
-if grep -q "extension=mongodb.so" "$PHP_INI_FILE"; then
-    echo "mongodb extension already exists in php.ini file"
-else
-    echo "mongodb extension does not exist in php.ini file.  Adding..."
-    echo "extension=mongodb.so" | sudo tee -a "$PHP_INI_FILE"    
-fi
-
-# Determine the current php.ini file in use (apache2)
-# If it contains the text 'cli', replace it with apache2 assume that is the path to the apache php.ini file
-PHP_INI_FILE="$(php -i | grep 'Loaded Configuration File' | awk '{print $5}' | sed 's/cli/apache2/')"
-echo "Analyzing PHP ini file: $PHP_INI_FILE"
-# Scan the php.ini file for the mongodb extension and add it if it doesn't exist
-if grep -q "extension=mongodb.so" "$PHP_INI_FILE"; then
-    echo "mongodb extension already exists in php.ini file"
-else
-    echo "mongodb extension does not exist in php.ini file.  Adding..."
-    echo "extension=mongodb.so" | sudo tee -a "$PHP_INI_FILE"    
-fi
-
-echo "Do you want to (re)install the mongodb library driver? (Y/n)"
-read -r INSTALL_MONGODB_LIBRARY
-# examine the response in a case insensitive manner
-INSTALL_MONGODB_LIBRARY=$(echo "$INSTALL_MONGODB_LIBRARY" | tr '[:upper:]' '[:lower:]')
-if [ "$INSTALL_MONGODB_LIBRARY" != "n" ]; then
-    echo "Installing mongodb library..."
-    "${CURRENT_DIRECTORY}/composer.phar" require mongodb/mongodb --ignore-platform-reqs
-    "${CURRENT_DIRECTORY}/composer.phar" require jenssegers/mongodb --ignore-platform-reqs
-else
-    echo "Skipping mongodb library installation..."
-fi
+# echo "Do you want to (re)install the mongodb library driver? (Y/n)"
+# read -r INSTALL_MONGODB_LIBRARY
+# # examine the response in a case insensitive manner
+# INSTALL_MONGODB_LIBRARY=$(echo "$INSTALL_MONGODB_LIBRARY" | tr '[:upper:]' '[:lower:]')
+# if [ "$INSTALL_MONGODB_LIBRARY" != "n" ]; then
+#     echo "Installing mongodb library..."
+#     "${CURRENT_DIRECTORY}/composer.phar" require mongodb/mongodb --ignore-platform-reqs
+#     "${CURRENT_DIRECTORY}/composer.phar" require jenssegers/mongodb --ignore-platform-reqs
+# else
+#     echo "Skipping mongodb library installation..."
+# fi
 
 echo ""
 echo ""
@@ -213,6 +254,10 @@ else
     echo "Skipping initial database data load..."
 fi
 
+# Run schema updater
+echo "Running schema updater..."
+python3 schema_updater.py
+
 # Create an inital config.py file
 # if there is already a config.py file, ask if the user wants to overwrite it
 echo ""
@@ -246,8 +291,8 @@ else
 fi
 
 
-# Generate a systemd service unit based on the current directory and user
-echo "Generating systemd service unit..."
+# Generate a systemd service unit the SUPERVISOR based on the current directory and user
+echo "Generating systemd service unit for SUPERVISOR..."
 echo "[Unit]" > streammon_supervisor.service
 echo "Description=Stream Monitor Supervisor" >> streammon_supervisor.service
 echo "After=multi-user.target" >> streammon_supervisor.service
@@ -261,7 +306,8 @@ echo "ExecStart=/usr/bin/python3 \"$CURRENT_DIRECTORY/streammon_supervisor.py\""
 echo "[Install]" >> streammon_supervisor.service
 echo "WantedBy=multi-user.target" >> streammon_supervisor.service
 
-echo "Do you want to install the systemd service unit and enable it? (Y/n)"
+
+echo "Do you want to install the SUPERVISOR systemd service unit and enable it? (Y/n)"
 read -r INSTALL_SYSTEMD
 # examine the response in a case insensitive manner
 INSTALL_SYSTEMD=$(echo "$INSTALL_SYSTEMD" | tr '[:upper:]' '[:lower:]')
@@ -275,8 +321,41 @@ else
     echo "Skipping systemd service unit installation..."
 fi
 
-echo "Restarting apache2..."
-sudo systemctl restart apache2
+# Generate a systemd service unit the API based on the current directory and user
+echo "[Unit]" >> streammon_api.service
+echo "Description=StreamMonitor Express API" >> streammon_api.service
+echo "After=network.target" >> streammon_api.service
+echo "" >> streammon_api.service
+echo "[Service]" >> streammon_api.service
+echo "Environment=NODE_ENV=production" >> streammon_api.service
+echo "WorkingDirectory=$CURRENT_DIRECTORY" >> streammon_api.service
+echo "ExecStart=/usr/bin/npm run start" >> streammon_api.service
+echo "Restart=always" >> streammon_api.service
+echo "User=$CURRENT_USERNAME" >> streammon_api.service
+echo "Group=$CURRENT_GROUPNAME" >> streammon_api.service
+echo "StandardOutput=inherit" >> streammon_api.service
+echo "StandardError=inherit" >> streammon_api.service
+echo "SyslogIdentifier=streammon-api" >> streammon_api.service
+echo "" >> streammon_api.service
+echo "[Install]" >> streammon_api.service
+echo "WantedBy=multi-user.target" >> streammon_api.service
+
+
+
+
+echo "Do you want to install the API systemd service unit and enable it? (Y/n)"
+read -r INSTALL_SYSTEMD
+# examine the response in a case insensitive manner
+INSTALL_SYSTEMD=$(echo "$INSTALL_SYSTEMD" | tr '[:upper:]' '[:lower:]')
+if [ "$INSTALL_SYSTEMD" != "n" ]; then
+    echo "Installing systemd service unit..."
+    sudo cp streammon_api.service /etc/systemd/system
+    sudo systemctl daemon-reload
+    sudo systemctl enable streammon_api.service
+    sudo systemctl start streammon_api.service
+else
+    echo "Skipping API systemd service unit installation..."
+fi
 
 echo ""
 echo ""
