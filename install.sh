@@ -338,7 +338,7 @@ fi
 
 # Run schema updater
 echo "Running schema updater..."
-python3 schema_updater.py
+python3 schema_update.py
 
 # Create an inital config.py file
 # if there is already a config.py file, ask if the user wants to overwrite it
