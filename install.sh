@@ -389,13 +389,12 @@ sudo apt-get install -y nodejs
 echo "Installing npm dependencies..."
 cd "$APP_DIR" || { echo "Error: Directory $APP_DIR not found."; exit 1; }
 npm install
-
-
+cd $CURRENT_DIRECTORY
 
 
 # Generate a systemd service unit the SUPERVISOR based on the current directory and user
 # Clear out any existing file
-echo "" > $CURRENT_DIRECTORY/streammon_supervisor.service
+echo "" > streammon_supervisor.service
 echo "Generating systemd service unit for SUPERVISOR..."
 echo "[Unit]" > streammon_supervisor.service
 echo "Description=Stream Monitor Supervisor" >> streammon_supervisor.service
@@ -408,7 +407,7 @@ echo "Restart=always" >> streammon_supervisor.service
 echo "WorkingDirectory=$CURRENT_DIRECTORY" >> streammon_supervisor.service
 echo "ExecStart=/usr/bin/python3 \"$CURRENT_DIRECTORY/streammon_supervisor.py\"" >> streammon_supervisor.service
 echo "[Install]" >> streammon_supervisor.service
-echo "WantedBy=multi-user.target" >> $CURRENT_DIRECTORY/streammon_supervisor.service
+echo "WantedBy=multi-user.target" >> streammon_supervisor.service
 
 
 echo "Do you want to install the SUPERVISOR systemd service unit and enable it? (Y/n)"
@@ -417,7 +416,7 @@ read -r INSTALL_SYSTEMD
 INSTALL_SYSTEMD=$(echo "$INSTALL_SYSTEMD" | tr '[:upper:]' '[:lower:]')
 if [ "$INSTALL_SYSTEMD" != "n" ]; then
     echo "Installing systemd service unit..."
-    sudo cp $CURRENT_DIRECTORY/streammon_supervisor.service /etc/systemd/system
+    sudo cp streammon_supervisor.service /etc/systemd/system
     sudo systemctl daemon-reload
     sudo systemctl enable streammon_supervisor.service
     sudo systemctl start streammon_supervisor.service
@@ -427,9 +426,11 @@ fi
 
 
 
+
 # Generate a systemd service unit the API based on the current directory and user
 # Clear out any existing file
-echo "" > $CURRENT_DIRECTORY/streammon_api.service
+
+echo "" > streammon_api.service
 echo "[Unit]" >> streammon_api.service
 echo "Description=StreamMonitor Express API" >> streammon_api.service
 echo "After=network.target" >> streammon_api.service
@@ -446,7 +447,7 @@ echo "StandardError=inherit" >> streammon_api.service
 echo "SyslogIdentifier=streammon-api" >> streammon_api.service
 echo "" >> streammon_api.service
 echo "[Install]" >> streammon_api.service
-echo "WantedBy=multi-user.target" >> $CURRENT_DIRECTORY/streammon_api.service
+echo "WantedBy=multi-user.target" >> streammon_api.service
 
 
 
@@ -457,7 +458,7 @@ read -r INSTALL_SYSTEMD
 INSTALL_SYSTEMD=$(echo "$INSTALL_SYSTEMD" | tr '[:upper:]' '[:lower:]')
 if [ "$INSTALL_SYSTEMD" != "n" ]; then
     echo "Installing systemd service unit..."
-    sudo cp $CURRENT_DIRECTORY/streammon_api.service /etc/systemd/system
+    sudo cp streammon_api.service /etc/systemd/system
     sudo systemctl daemon-reload
     sudo systemctl enable streammon_api.service
     sudo systemctl start streammon_api.service
