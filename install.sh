@@ -48,60 +48,76 @@ echo "Installing dependencies..."
     # Install python dependencies for the normal user and for root
 
     # Constants
-    VENV_DIR="venv"
-    PYTHON_BIN="python3"
+    # VENV_DIR="$CURRENT_DIRECTORY/venv"
+    PYTHON_BIN="/usr/bin/python3"
 
     echo "Starting installation process..."
 
     # Check if Python 3 is installed
-    if ! command -v $PYTHON_BIN &> /dev/null; then
-        echo "Error: Python 3 is not installed. Please install Python 3 first."
-        exit 1
-    fi
+    # if ! command -v $PYTHON_BIN &> /dev/null; then
+    #     echo "Error: Python 3 is not installed. Will attempt to install."
+        
+    #     # Install python3
+    #     sudo apt install python3.10-venv -y
+    #     sudo apt install python3 -y
 
-    # Create a virtual environment if it doesn't already exist
-    if [ ! -d "$VENV_DIR" ]; then
-        echo "Creating a virtual environment in $VENV_DIR..."
-        $PYTHON_BIN -m venv $VENV_DIR
+    #     if ! command -v $PYTHON_BIN &> /dev/null; then
+    #         echo "Error: Python 3 could not be installed. Please install Python 3 first."
+    #         exit 1
+    #     fi
+
+    # fi
+
+    if ($PYTHON_BIN -m pip --version); then
+        echo "Pip is installed"
     else
-        echo "Virtual environment already exists at $VENV_DIR."
+        echo "Pip is not installed"
+        sudo apt install python3-pip -y
     fi
 
-    # Activate the virtual environment
-    echo "Activating the virtual environment..."
-    source "$VENV_DIR/bin/activate"
+    # # Create a virtual environment if it doesn't already exist
+    # if [ ! -d "$VENV_DIR" ]; then
+    #     echo "Creating a virtual environment in $VENV_DIR..."
+    #     $PYTHON_BIN -m venv $VENV_DIR
+    # else
+    #     echo "Virtual environment already exists at $VENV_DIR."
+    # fi
+
+    # # Activate the virtual environment
+    # echo "Activating the virtual environment..."
+    # source "$VENV_DIR/bin/activate"
 
     # Upgrade pip to the latest version
     echo "Upgrading pip..."
-    pip install --upgrade pip
+    pip install --upgrade pip --break-system-packages
 
     # Install dependencies from requirements.txt
     if [ -f "requirements.txt" ]; then
         echo "Installing dependencies from requirements.txt..."
-        pip install -r requirements.txt
+        pip install -r requirements.txt --break-system-packages
     else
         echo "Error: requirements.txt not found."
         deactivate
         exit 1
     fi
 
-    # Deactivate the virtual environment
-    echo "Deactivating the virtual environment..."
-    deactivate
+    # # Deactivate the virtual environment
+    # echo "Deactivating the virtual environment..."
+    # deactivate
 
     # External Environment Management: Offer workaround for errors
-    if [ ! -z "$(pip list | grep externally-managed-environment)" ]; then
-        echo "Notice: If you encounter the 'externally-managed-environment' error and wish to install directly, run:"
-        echo "       pip install <package-name> --break-system-packages"
-        echo "Or use the provided virtual environment for isolated package management."
-    fi
+    # if [ ! -z "$(pip list | grep externally-managed-environment)" ]; then
+    #     echo "Notice: If you encounter the 'externally-managed-environment' error and wish to install directly, run:"
+    #     echo "       pip install <package-name> --break-system-packages"
+    #     echo "Or use the provided virtual environment for isolated package management."
+    # fi
 
 
     # Now install the packages all this setup was for.
-    python3 -m pip install apprise
-    python3 -m pip install psutil
-    sudo python3 -m pip install apprise
-    sudo python3 -m pip install psutil
+    # python3 -m pip install apprise 
+    # python3 -m pip install psutil
+    # sudo python3 -m pip install apprise
+    # sudo python3 -m pip install psutil
 fi
 
 echo "Starting mongodb..."
@@ -165,7 +181,7 @@ else
     # examine the response in a case insensitive manner
     DNS_NAME=$(echo "$DNS_NAME" | tr '[:upper:]' '[:lower:')
 
-    echo "
+    sudo tee /etc/nginx/sites-available/default > /dev/null <<EOF
     server {
         listen 80;
         server_name ${DNS_NAME};
@@ -174,33 +190,33 @@ else
         index index.html;
 
         location / {
-            try_files $uri /index.html;
+            try_files \$uri /index.html;
         }
 
         # Proxy configuration for API requests
         location /protected {
             proxy_pass http://localhost:5000;
             proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Upgrade \$http_upgrade;
             proxy_set_header Connection 'upgrade';
-            proxy_set_header Host $host;
-            proxy_cache_bypass $http_upgrade;
+            proxy_set_header Host \$host;
+            proxy_cache_bypass \$http_upgrade;
         }
 
         location /auth {
             proxy_pass http://localhost:5000;
             proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Upgrade \$http_upgrade;
             proxy_set_header Connection 'upgrade';
-            proxy_set_header Host $host;
-            proxy_cache_bypass $http_upgrade;
+            proxy_set_header Host \$host;
+            proxy_cache_bypass \$http_upgrade;
         }
 
         # Log files for debugging
         error_log /var/log/nginx/error.log;
         access_log /var/log/nginx/access.log;
     }
-    " > /etc/nginx/sites-available/default
+EOF
 
     echo "Restarting nginx..."
     sudo systemctl restart nginx
@@ -357,7 +373,29 @@ else
 fi
 
 
+echo "Installing nodejs and dependencies..."
+# Constants
+SERVICE_NAME="streammon-api"
+APP_DIR="$CURRENT_DIRECTORY/StreamMonitor_Express_API" # Replace with the actual path
+
+echo "Express API..."
+
+# Install Node.js
+echo "Installing Node.js..."
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+
+echo "Installing npm dependencies..."
+cd "$APP_DIR" || { echo "Error: Directory $APP_DIR not found."; exit 1; }
+npm install
+
+
+
+
 # Generate a systemd service unit the SUPERVISOR based on the current directory and user
+# Clear out any existing file
+echo "" > streammon_supervisor.service
 echo "Generating systemd service unit for SUPERVISOR..."
 echo "[Unit]" > streammon_supervisor.service
 echo "Description=Stream Monitor Supervisor" >> streammon_supervisor.service
@@ -387,15 +425,19 @@ else
     echo "Skipping systemd service unit installation..."
 fi
 
+
+
 # Generate a systemd service unit the API based on the current directory and user
+# Clear out any existing file
+echo "" > streammon_api.service
 echo "[Unit]" >> streammon_api.service
 echo "Description=StreamMonitor Express API" >> streammon_api.service
 echo "After=network.target" >> streammon_api.service
 echo "" >> streammon_api.service
 echo "[Service]" >> streammon_api.service
 echo "Environment=NODE_ENV=production" >> streammon_api.service
-echo "WorkingDirectory=$CURRENT_DIRECTORY" >> streammon_api.service
-echo "ExecStart=/usr/bin/npm run start" >> streammon_api.service
+echo "WorkingDirectory=$APP_DIR" >> streammon_api.service
+echo "ExecStart=/usr/bin/npm exec npm run start" >> streammon_api.service
 echo "Restart=always" >> streammon_api.service
 echo "User=$CURRENT_USERNAME" >> streammon_api.service
 echo "Group=$CURRENT_GROUPNAME" >> streammon_api.service
@@ -423,12 +465,11 @@ else
     echo "Skipping API systemd service unit installation..."
 fi
 
-echo ""
-echo ""
-echo "Done!  Please note that if this is your first name-based virtual host, you"
-echo "may also need to disable the default virtual host by running "
-echo "'sudo a2dissite 000-default.conf' and restarting apache"
 
-echo "Otherwise, you should be able to access the Stream Monitor Supervisor at"
+echo ""
+echo ""
+echo "Done!"
+
+echo "You should be able to access the Stream Monitor Supervisor at"
 echo "http://${DNS_NAME}/"
  
