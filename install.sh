@@ -45,6 +45,11 @@ echo "Installing dependencies..."
     sudo apt update
     sudo apt install mongodb-org -y
 
+    echo "Enabling and starting mongod"
+    sudo systemctl enable mongod
+    sudo systemctl start mongod
+    
+
     # Install python dependencies for the normal user and for root
 
     # Constants
