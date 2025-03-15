@@ -388,7 +388,8 @@ def main():
     # If we get here, it's probably because the stream died, or something went wrong (hopefully temporary)
             # This will sleep for the prescribed time and then the process will die
             # at that point, the supervisor will notice and restart us as a new process.
-    logging.info("Waiting for " + str(CHECK_UPNESS_TIME) + " seconds")
+
+    logging.info("Stream death. Retry connect in " + str(CHECK_UPNESS_TIME) + " seconds")
     time.sleep (CHECK_UPNESS_TIME)
 
 
@@ -528,8 +529,6 @@ def update_frame_grab():
     
     # Otherwise, we start a special instance of ffmpeg to grab a frame from the stream and write it as a temp jpg file
     else: 
-
-        # Warning: sometimes this takes so long that the system will think ongoing issues (blackframe) have timed out/reset
         ffcmd_grab = "ffmpeg -ss 2 -i "+ stream +" -frames:v 1 -y -f image2 -t 5 \""+ stream_desc + ".jpg\""
 
         logging.info("Running framegrab: " + ffcmd_grab)
@@ -540,14 +539,10 @@ def update_frame_grab():
                 logging.error("Framegrab failed with result " + str(ffmpeg_result))
                 logging.error("ffmpeg command failed. Please check that ffmpeg is installed and in the path.")
                 exit()
-
-        # with concurrent.futures.ThreadPoolExecutor() as executor:
-            # future = executor.submit(run_ffmpeg_command, ffcmd_grab)
+        
         executor = concurrent.futures.ThreadPoolExecutor()
         future = executor.submit(run_ffmpeg_command, ffcmd_grab)
         
-        
-        # p = Popen(ffcmd_grab,shell=True, stderr=PIPE, stdin=PIPE, bufsize=1, close_fds=ON_POSIX)
         im = Image.open(stream_desc+".jpg")        
     
 
@@ -561,7 +556,6 @@ def update_frame_grab():
     logging.info("Updating frame grab in database")
 
     mydict = {'timestamp': mytime, 'stream': stream_desc, 'data': base64.b64encode(image_bytes.getvalue())}
-    # convert2unicode(mydict)
 
     image_id = stream_images_collection.update_one(
         {'stream': stream_desc}, 
@@ -664,7 +658,6 @@ def analyze(stream):
 
         # Make sure line is empty as a bytes object
         line = ""
-
         
         # Try to get a line from the queue. We don't block but we do wait a second in case it's not right there
         try:
@@ -713,16 +706,14 @@ def analyze(stream):
         # print (line)  # Uncomment for debugging ffmpeg problems
         
         # See if it's time to update the frame grab thumbnail
-        # print (time.time() - last_framegrab_time)
-        # print FRAME_GRAB_INTERVAL
         if (time.time() - last_framegrab_time) > int(FRAME_GRAB_INTERVAL):
-            # logging.info("Time to update frame grab")
+            logging.info("Updating frame grab")
             last_framegrab_time = time.time()
 
             # Call update_frame_grab asynchronously
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(update_frame_grab)
-            logging.info("Framegrab thread called asynchronously")        
+            
     
 
         # If we see an error check to see if it's after the ramp up time, otherwise we ignore it
@@ -772,10 +763,12 @@ def analyze(stream):
                             stale_frames_in_progress = 1
             
             # The blackframe_timer times how long we have been getting black frames
-            # The blackframe_last_seen timer times how long its been since we have seen a blackframe
+            # blackframe_timer 
+            # The blackframe_last_seen contains the time we last saw a blackframe
+            # BLACKFRAME_SECONDS_ALLOWED is the time we allow blackframes to continue before we alert
 
-            # If a blackframe is seen:
-            # logging.info("line is " + line)
+
+            # If a blackframe is seen:            
             p = re.compile('\[Parsed_blackframe_1.* frame:(\d+).* last_keyframe:(\d+)')            
             if (p.match(line)):
                 logging.info('blackframe seen')
@@ -803,8 +796,6 @@ def analyze(stream):
 
             # If the blackframe_last_seen timer is more than n seconds
             temp_time = time.time() - blackframe_last_seen_time
-            # if ((time.time() - blackframe_last_seen_time) > BLACKFRAME_RESET_TIME):
-            # logging.debug("Time since last black frame seen: " + str(int(temp_time)))
             if (temp_time > BLACKFRAME_RESET_TIME):
 
                 # Stop and reset the blackframe_timer
