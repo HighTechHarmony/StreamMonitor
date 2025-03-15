@@ -739,7 +739,7 @@ def analyze(stream):
             # to determine if the stream is still giving us new data
             # logging.info("line is " + line)
             # Requires ffmpeg to log in debug level
-            p = re.compile('.*\[debug\] frame:(\d+).*')        
+            p = re.compile(r'.*\[debug\] frame:(\d+).*')
             if (p.match(line)):
             #     print "Matched\n"
                 for match in p.finditer(line):
@@ -769,7 +769,7 @@ def analyze(stream):
 
 
             # If a blackframe is seen:            
-            p = re.compile('\[Parsed_blackframe_1.* frame:(\d+).* last_keyframe:(\d+)')            
+            p = re.compile(r'\[Parsed_blackframe_1.* frame:(\d+).* last_keyframe:(\d+)')
             if (p.match(line)):
                 logging.info('blackframe seen')
 
