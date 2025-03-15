@@ -14,6 +14,7 @@ import subprocess
 from subprocess import PIPE, Popen, call
 # from threading  import Thread
 import threading
+import concurrent.futures
 import time
 import base64
 import logging
@@ -502,6 +503,14 @@ def run(q, ffcmd, thread_name):
     t.start()
     return p
 
+# This function runs ffmpeg in a separate thread, which is useful for the frame grab (no queue output)
+def run_ffmpeg_command(ffcmd_grab):
+    ffmpeg_result = subprocess.call(ffcmd_grab, shell=True)
+    if ffmpeg_result != 0:
+        logging.error("Framegrab failed with result " + str(ffmpeg_result))
+        logging.error("ffmpeg command failed.  Please check that ffmpeg is installed and in the path.")
+        exit()
+
 
 # Updates the thumbnail image data and writes it to the stream_images database (for the preview)
 # Should be run every minute or so.
@@ -519,18 +528,24 @@ def update_frame_grab():
     
     # Otherwise, we start a special instance of ffmpeg to grab a frame from the stream and write it as a temp jpg file
     else: 
+
+        # Warning: sometimes this takes so long that the system will think ongoing issues (blackframe) have timed out/reset
         ffcmd_grab = "ffmpeg -ss 2 -i "+ stream +" -frames:v 1 -y -f image2 -t 5 \""+ stream_desc + ".jpg\""
 
         logging.info("Running framegrab: " + ffcmd_grab)
 
-        # Run the process and determine if there was a problem
-        ffmpeg_result = subprocess.call(ffcmd_grab, shell=True)
+        def run_ffmpeg_command(cmd):
+            ffmpeg_result = subprocess.call(cmd, shell=True)
+            if ffmpeg_result != 0:
+                logging.error("Framegrab failed with result " + str(ffmpeg_result))
+                logging.error("ffmpeg command failed. Please check that ffmpeg is installed and in the path.")
+                exit()
 
-        if (ffmpeg_result != 0):
-            logging.error("Framegrab failed with result " + str(ffmpeg_result))
-            logging.error("ffmpeg command failed.  Please check that ffmpeg is installed and in the path.")
-            exit()
-
+        # with concurrent.futures.ThreadPoolExecutor() as executor:
+            # future = executor.submit(run_ffmpeg_command, ffcmd_grab)
+        executor = concurrent.futures.ThreadPoolExecutor()
+        future = executor.submit(run_ffmpeg_command, ffcmd_grab)
+        
         
         # p = Popen(ffcmd_grab,shell=True, stderr=PIPE, stdin=PIPE, bufsize=1, close_fds=ON_POSIX)
         im = Image.open(stream_desc+".jpg")        
@@ -701,8 +716,13 @@ def analyze(stream):
         # print (time.time() - last_framegrab_time)
         # print FRAME_GRAB_INTERVAL
         if (time.time() - last_framegrab_time) > int(FRAME_GRAB_INTERVAL):
-            update_frame_grab()
+            # logging.info("Time to update frame grab")
             last_framegrab_time = time.time()
+
+            # Call update_frame_grab asynchronously
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(update_frame_grab)
+            logging.info("Framegrab thread called asynchronously")        
     
 
         # If we see an error check to see if it's after the ramp up time, otherwise we ignore it
@@ -750,23 +770,6 @@ def analyze(stream):
                             logging.info("NO_NEW_FRAMES DURATION EXCEEDED " + STALE_FRAME_TIMEOUT + "sec")
                             send_message("NO_NEW_FRAMES DURATION EXCEEDED " + STALE_FRAME_TIMEOUT + "sec")
                             stale_frames_in_progress = 1
-                        
-
-
-            #         blackframe = match.group(1)
-                    
-            #         # print "last keyframe: " + match.group(2) + "\n"
-            #         last_kf = match.group(2)
-            #         total_blackframes=int(blackframe)-int(last_kf)
-            #     print "Blackframes: " + str(total_blackframes)
-            
-            # # If we see an error and it's after the ramp up time
-            # elif ("error" in line):
-            #     if (time.time()-start_time) > RAMPUP_TIME:
-            #         return False
-            #     else:
-            #         logging.info("Ignoring startup error: " + line)
-
             
             # The blackframe_timer times how long we have been getting black frames
             # The blackframe_last_seen timer times how long its been since we have seen a blackframe
@@ -777,7 +780,7 @@ def analyze(stream):
             if (p.match(line)):
                 logging.info('blackframe seen')
 
-                # Reset the blackframe_last_seen timer
+                # Reset the blackframe_last_seen timer                
                 blackframe_last_seen_time = time.time()
 
                 # If the blackframe_timer is (already) running
@@ -799,9 +802,10 @@ def analyze(stream):
 
 
             # If the blackframe_last_seen timer is more than n seconds
-            if ((time.time() - blackframe_last_seen_time) > BLACKFRAME_RESET_TIME):
-
-                # logging.info('Resetting blackframe_timer')
+            temp_time = time.time() - blackframe_last_seen_time
+            # if ((time.time() - blackframe_last_seen_time) > BLACKFRAME_RESET_TIME):
+            # logging.debug("Time since last black frame seen: " + str(int(temp_time)))
+            if (temp_time > BLACKFRAME_RESET_TIME):
 
                 # Stop and reset the blackframe_timer
                 blackframe_timer_running = 0
@@ -901,7 +905,9 @@ def launch_process_to_q(command, q):
     return process
 
 def enqueue_output(output, q):
+    
     for line in iter(output.readline, b''):
+        # logging.info("enqueue_output() got:" + line)
         q.put(line)
     output.close()
 
