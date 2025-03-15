@@ -52,32 +52,31 @@ The system currently consists of Python scripts and a PHP web interface, communi
 \*The web interface allows the user to provide stream URLS to monitor, enable and disable monitoring on a per stream basis, and administer a pushover token which will receive alerts.
 
 ```
-                               ┌───────────────┐
-                               │               │
-                               │   Supervisor │
-                     ┌─────────┤   (Python)    ├────────┐
-                     │         │               │        │
-                     │         └───────────────┘        │
-                     │                                  │
-              ┌──────┴──────┐                    ┌──────┴────────┐
-              │             │                    │               │
-              │  DB (Mongo) │                    │ Stream monitor│
-              │             ├────────────────────┤    Agent      │
-              │             │                    │   (Python)    ◄────────┐
-              └───┬─────────┘                    │               │        │
-                  │                              └──────┬────────┘        │
-                  │                                     │                 │
-                  │                                     │                 │
-┌──────────┐      │                                     │                 │
-│          │      │                                     │                 │
-│          ├──────┘                                     │                 │
-│  WEB UI  │                                     ┌──────▼────────┐        │
-│          │                                     │               │   ┌────┴────┐
-│   (PHP/APACHE)                                 │    FFMPEG     │   │         │
-│          │                                     │               ├───► LOG (TXT)
-│          │                                     │               │   │         │
-│          │                                     └───────────────┘   └─────────┘
-└──────────┘
+                                          ┌───────────────┐
+                                          │               │
+                                          │   Supervisor  │
+                                ┌─────────┤   (Python)    ├────────┐
+                                │         │               │        │
+                                │         └───────────────┘        │
+                                │                                  │
+                         ┌──────┴──────┐                    ┌──────┴────────┐
+                         │             │                    │               │
+                         │  DB (Mongo) │                    │ Stream monitor│
+                         │             ├────────────────────┤    Agent      │
+                         │             │                    │   (Python)    ◄────────┐
+                         └───┬─────────┘                    │               │        │
+                             │                              └──────┬────────┘        │
+                             │                                     │                 │
+                             │                                     │                 │
+                             │                                     │                 │
+    ┌────────────┐    ┌──────▼─────┐                               │                 │
+    │            │    │            │                               │                 │
+    │  React UI  │    │  Express/  │                        ┌──────▼────────┐        │
+    │            ◄────┼    API     │                        │               │   ┌────┴────┐
+    │            │    │            │                        │    FFMPEG     │   │         │
+    │            │    │            │                        │               ├───► LOG (TXT)
+    └────────────┘    └────────────┘                        │               │   │         │
+                                                            └───────────────┘   └─────────┘
 ```
 
 ## Installation
