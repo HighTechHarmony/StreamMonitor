@@ -85,28 +85,29 @@ The system currently consists of Python scripts and a PHP web interface, communi
 
 Essentially:
 
+- nginx
 - FFmpeg 4.2.7 or higher
 - MongoDB
 - Python3
 - Python-imaging
 - PyMongo
-- Apache2 with PHP
-- MongoDB PHP driver extension & library
 - Python PSutil
+- python-dotenv
 - Apprise (notification framework)
+- nodeJS v18 or higher
 
 ### Review (and run) install script
 
-You can try the included install.sh script. It has been tested on Ubuntu 22.04 server. It asks you lots of questions, but accepting the defaults should result in a functional system on a template machine with the minimized Ubuntu deployment. It will ask for the root password for certain tasks.
+You can try the included install.sh script. It has been tested on Ubuntu 22.04 and 24.04 server. It asks you lots of questions, but accepting the defaults should result in a functional system on a template machine with the minimized Ubuntu deployment. It will ask for the root password for certain tasks.
 
 install.sh attempts to:
 
 - install above prerequistes
 - load mongodb initial data
-- create an apache2 name-based virtual host
-- create a systemd service unit for the supervisor
+- create an nginx name-based virtual host
+- create systemd service units for the supervisor and for the express API
 
-WARNING: MongoDB is installed with no authentication, so you need to secure it.
+WARNING: MongoDB is installed with no authentication, so you need to take extra steps secure it if this will be on a shared host.
 
 To install the system, follow these steps:
 
@@ -121,28 +122,13 @@ There are some things the install.sh script might not do well yet, but reading i
 
 Tasks the install.sh script doesn't accomplish for you:
 
-- Disabling the default apache virtualhost (to do this, type: `a2dissite 000-default.conf` as root)
 - Apply execute permission to parent directories (to do this, type: `chmod a+x` on the installation directory and all of its parent directories, up to the root level)
 
 In all, the system can be up and running on a barebones Ubuntu server installation within about 15 minutes of mostly automated downloading, building and compiling the prerequisites.
 
-### Alternative: Install MongoDB PHP driver library manually via composer
-
-This can be a challenge. Some basics for a Debian/Ubuntu system:
-
-`apt install php-pear php-dev`
-
-`pecl install mongodb`
-
-`apt install composer`
-
-(as user) `composer require mongodb/mongodb --ignore-platform-reqs`
-
-`composer require jenssegers/mongodb --ignore-platform-reqs`
-
 ### Create or modify config.py and fill in your connection string and pushover token default, like this:
 
-You need to make a config.py file in order for anything to work. Copy config.py.example file and modify as needed. It generally looks like this but may change with future revisions so consider config.py.example a better template.
+You need to make a config.py file in order for anything to work. Copy config.py.example file and modify as needed. It generally looks like this, but may change with future revisions, so consider config.py.example a better template:
 
 ```
 CONNECTION_STRING = "mongodb://localhost:port/?authSource=admin&readPreference=primary&ssl=false"
@@ -154,7 +140,24 @@ ALERTS_DISABLED = 0
 STREAMDOWN_ALERTS_DISABLED = 0
 ```
 
+### Configure mongoDB access and a secret key for the API
+
+Express API requires some information to be configured before the backend will work. Create a .env file with your MongoDB URI and a SESSION_SECRET. This is an EXAMPLE, replace the URI and SESSION_SECRET with your own, and place this file as StreamMonitor/Streammonitor_Express_API/.env:
+
+```
+MONGO_URI=mongodb://localhost:27017/streammon
+SESSION_SECRET=B7xkP+8mQ4UnOZ89+EVu4sX5TeQop3TYHi3DZRMNdQ9=
+```
+
+(Do not share the SESSION_SECRET).
+
 ### IMPORTANT: Login and change the default login info
+
+Restart the server, or the running API service:
+
+```
+sudo systemctl restart streammon_api.service
+```
 
 Once the installation is up and running, you can access the UI at http://server (port 80)
 
@@ -164,7 +167,7 @@ Default username:
 Default password:
 `changeme`
 
-(Hopefully it is apparent that the first thing you should do is go into "Users" panel and change the password to something else, or create a new user and delete this one.)
+#### (Hopefully it is apparent that the first thing you should do is go into "Users" panel and change the password to something else, or create a new user and delete this one.)
 
 ## Configuration
 
