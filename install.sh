@@ -364,6 +364,10 @@ if [ -f "config.py" ]; then
         echo "USER = \"$CURRENT_USERNAME\"" >> config.py
         echo "ALERTS_DISABLED = 0" >> config.py
         echo "STREAMDOWN_ALERTS_DISABLED = 0" >> config.py
+        echo "STREAM_FAILURE_GRACE_PERIOD = 60" >> config.py
+        echo "STREAM_FAILURE_RETRY_INTERVAL = 10" >> config.py
+        echo "ENABLE_GRACEFUL_STREAM_FAILURE = 1" >> config.py
+
     else
         echo "Skipping config.py file generation..."
     fi
