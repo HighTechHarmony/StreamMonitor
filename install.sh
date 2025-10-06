@@ -390,12 +390,48 @@ echo "Installing Node.js..."
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
+# Detect the actual paths to node and npm for the systemd service
+NODE_PATH=$(which node)
+NPM_PATH=$(which npm)
+
+echo "Detected Node.js at: $NODE_PATH"
+echo "Detected npm at: $NPM_PATH"
+
+# Also get the directory where node/npm are located for PATH
+if [ -n "$NODE_PATH" ]; then
+    NODE_BIN_DIR=$(dirname "$NODE_PATH")
+    echo "Node.js bin directory: $NODE_BIN_DIR"
+else
+    NODE_BIN_DIR=""
+fi
+
+# If npm or node not found, use defaults
+if [ -z "$NODE_PATH" ]; then
+    NODE_PATH="/usr/bin/node"
+    echo "Warning: Could not detect node path, using default: $NODE_PATH"
+fi
+
+if [ -z "$NPM_PATH" ]; then
+    NPM_PATH="/usr/bin/npm"
+    echo "Warning: Could not detect npm path, using default: $NPM_PATH"
+fi
+
+# Generate .env file with fresh session secret
+echo "Generating .env file with fresh session secret..."
+ENV_FILE="$APP_DIR/.env"
+SESSION_SECRET=$(openssl rand -base64 32)
+
+cat > "$ENV_FILE" << EOF
+MONGO_URI=mongodb://localhost:27017/$MONGO_DATABASE_NAME
+SESSION_SECRET=$SESSION_SECRET
+EOF
+
+echo "✓ .env file created at $ENV_FILE"
 
 echo "Installing npm dependencies..."
 cd "$APP_DIR" || { echo "Error: Directory $APP_DIR not found."; exit 1; }
 npm install
 cd $CURRENT_DIRECTORY
-
 
 # Generate a systemd service unit the SUPERVISOR based on the current directory and user
 # Clear out any existing file
@@ -442,8 +478,12 @@ echo "After=network.target" >> streammon_api.service
 echo "" >> streammon_api.service
 echo "[Service]" >> streammon_api.service
 echo "Environment=NODE_ENV=production" >> streammon_api.service
+if [ -n "$NODE_BIN_DIR" ]; then
+    echo "Environment=PATH=$NODE_BIN_DIR:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" >> streammon_api.service
+fi
+echo "EnvironmentFile=$APP_DIR/.env" >> streammon_api.service
 echo "WorkingDirectory=$APP_DIR" >> streammon_api.service
-echo "ExecStart=/usr/bin/npm exec npm run start" >> streammon_api.service
+echo "ExecStart=$NPM_PATH start" >> streammon_api.service
 echo "Restart=always" >> streammon_api.service
 echo "User=$CURRENT_USERNAME" >> streammon_api.service
 echo "Group=$CURRENT_GROUPNAME" >> streammon_api.service
@@ -478,4 +518,4 @@ echo "Done!"
 
 echo "You should be able to access the Stream Monitor Supervisor at"
 echo "http://${DNS_NAME}/"
- 
+
