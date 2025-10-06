@@ -26,7 +26,7 @@ import io
 
 from pymongo import MongoClient
 import pymongo
-from config import MONGO_CONNECTION_STRING, OPERATING_DIRECTORY, MONGO_DATABASE_NAME, ALERTS_DISABLED, STREAMDOWN_ALERTS_DISABLED
+from config import MONGO_CONNECTION_STRING, OPERATING_DIRECTORY, MONGO_DATABASE_NAME, ALERTS_DISABLED, STREAMDOWN_ALERTS_DISABLED, STREAM_FAILURE_GRACE_PERIOD, STREAM_FAILURE_RETRY_INTERVAL, ENABLE_GRACEFUL_STREAM_FAILURE
 
 PROGRAM_VERSION = "1.0.3"
 
@@ -126,6 +126,18 @@ parser.add_argument('--frame_grab_interval',
     type=str,
     default="60",
     help='Frame grab thumbnail update interval in seconds')
+
+parser.add_argument('--stream_failure_grace_period',
+    metavar = 'stream_failure_grace_period',
+    type=str,
+    default=None,  # Changed from "60"
+    help='Seconds to retry stream connection before alerting (0 for immediate alert)')
+
+parser.add_argument('--stream_failure_retry_interval',
+    metavar = 'stream_failure_retry_interval',
+    type=str,
+    default=None,  # Changed from "10"
+    help='Seconds between stream reconnection attempts during grace period')
 
 parser.add_argument('--version',    
     action = 'version',
@@ -373,28 +385,76 @@ def main():
         alerts_disabled=0
         alerts_hard_disabled=0
 
+    # Command line overrides config file, otherwise use config values
+    grace_period = int(args.stream_failure_grace_period) if args.stream_failure_grace_period is not None else int(STREAM_FAILURE_GRACE_PERIOD) if ENABLE_GRACEFUL_STREAM_FAILURE else 0
+    retry_interval = int(args.stream_failure_retry_interval) if args.stream_failure_retry_interval is not None else int(STREAM_FAILURE_RETRY_INTERVAL)
+    
+    # Log the configuration being used
+    if grace_period > 0:
+        logging.info(f"Stream failure grace period enabled: {grace_period}s with {retry_interval}s retry interval")
+    else:
+        logging.info("Stream failure grace period disabled - immediate alerting")
+    
+    # Track whether we're in a grace period retry cycle
+    grace_period_start = None
+    retry_count = 0
 
-    # Okay, time for action - we launch the stream monitor via the analyze function
-
-    if not analyze (stream):
-        logging.info("Stream analyzer could not launch for " + stream + ". sending alert")
-        if not stream_down_in_progress:
-            stream_down_in_progress = 1
-            if streamdown_alerts_hard_disabled:
-                logging.info("Skipping alert, stream down alerts are hard-disabled by configuration.")
+    # Main connection loop with grace period support
+    while True:
+        logging.info(f"Attempting to analyze stream (attempt #{retry_count + 1})")
+        
+        if analyze(stream):
+            # Stream connected successfully and ran until it died
+            logging.info("Stream analyzer completed normally")
+            grace_period_start = None  # Reset grace period
+            retry_count = 0
+        else:
+            # Stream failed to connect or died
+            logging.info("Stream analyzer could not launch or died for " + stream)
+            
+            # Start grace period timer on first failure
+            if grace_period_start is None and grace_period > 0:
+                grace_period_start = time.time()
+                logging.info(f"Starting grace period: will retry for {grace_period} seconds before alerting")
+            
+            # Check if we're still within grace period
+            if grace_period > 0 and grace_period_start is not None:
+                elapsed = time.time() - grace_period_start
+                
+                if elapsed < grace_period:
+                    # Still within grace period - retry without alerting
+                    retry_count += 1
+                    remaining = grace_period - elapsed
+                    logging.info(f"Grace period: {remaining:.1f} seconds remaining, retrying in {retry_interval} seconds")
+                    time.sleep(retry_interval)
+                    continue  # Try again
+                else:
+                    # Grace period expired - send alert
+                    logging.info(f"Grace period expired after {retry_count} retries, sending alert")
+                    if not stream_down_in_progress:
+                        stream_down_in_progress = 1
+                        if streamdown_alerts_hard_disabled:
+                            logging.info("Skipping alert, stream down alerts are hard-disabled by configuration.")
+                        else:
+                            send_message(f"Stream failure for: {args.stream_uri} (after {retry_count} retry attempts)")
+                    
+                    # Reset for next cycle
+                    grace_period_start = None
+                    retry_count = 0
             else:
-                send_message("Stream failure for: " + args.stream_uri)        
-
-    # If we get here, it's probably because the stream died, or something went wrong (hopefully temporary)
-            # This will sleep for the prescribed time and then the process will die
-            # at that point, the supervisor will notice and restart us as a new process.
-
-    logging.info("Stream death. Retry connect in " + str(CHECK_UPNESS_TIME) + " seconds")
-    time.sleep (CHECK_UPNESS_TIME)
-
-
-
-
+                # No grace period configured (grace_period == 0) - immediate alert
+                logging.info("No grace period configured, sending immediate alert")
+                if not stream_down_in_progress:
+                    stream_down_in_progress = 1
+                    if streamdown_alerts_hard_disabled:
+                        logging.info("Skipping alert, stream down alerts are hard-disabled by configuration.")
+                    else:
+                        send_message(f"Stream failure for: {args.stream_uri}")
+        
+        # Long sleep before supervisor restarts us
+        logging.info("Stream death. Retry connect in " + str(CHECK_UPNESS_TIME) + " seconds")
+        time.sleep(CHECK_UPNESS_TIME)
+        break  # Exit after long sleep to let supervisor restart
 
 
 ################################################################################

@@ -4,4 +4,8 @@ MONGO_DATABASE_NAME = "streammon"
 OPERATING_DIRECTORY = "/home/scott/streammon"
 USER = "scott"
 ALERTS_DISABLED = 0
-STREAMDOWN_ALERTS_DISABLED = 0
+STREAMDOWN_ALERTS_DISABLED = 0  # Disable alerts for stream down events altogether
+# Define tolerance for transient stream failures
+STREAM_FAILURE_GRACE_PERIOD = 60  # Seconds to retry before alerting
+STREAM_FAILURE_RETRY_INTERVAL = 10  # Seconds between retry attempts
+ENABLE_GRACEFUL_STREAM_FAILURE = 1  # 0=immediate alert, 1=retry with grace period
