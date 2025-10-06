@@ -398,23 +398,41 @@ def main():
     # Track whether we're in a grace period retry cycle
     grace_period_start = None
     retry_count = 0
+    connection_established = False  # Track if we ever had a good connection
 
     # Main connection loop with grace period support
     while True:
-        logging.info(f"Attempting to analyze stream (attempt #{retry_count + 1})")
+        if retry_count == 0:
+            logging.info("Attempting to analyze stream")
+        else:
+            logging.info(f"Attempting to analyze stream (retry attempt #{retry_count})")
         
-        if analyze(stream):
+        analyze_result = analyze(stream)
+        
+        if analyze_result:
             # Stream connected successfully and ran until it died
             logging.info("Stream analyzer completed normally")
-            grace_period_start = None  # Reset grace period
+            
+            # If we were in a grace period and successfully reconnected, no alert needed
+            if grace_period_start is not None:
+                elapsed = time.time() - grace_period_start
+                logging.info(f"Stream reconnected successfully after {elapsed:.1f} seconds ({retry_count} retries) - no alert sent")
+            
+            # Reset grace period tracking
+            grace_period_start = None
             retry_count = 0
+            connection_established = True
+            
+            # Stream was running and then died - this is expected, loop will retry
+            
         else:
-            # Stream failed to connect or died
+            # Stream failed to connect or died immediately
             logging.info("Stream analyzer could not launch or died for " + stream)
             
-            # Start grace period timer on first failure
+            # Start grace period timer on first failure (if grace period is configured)
             if grace_period_start is None and grace_period > 0:
                 grace_period_start = time.time()
+                retry_count = 0
                 logging.info(f"Starting grace period: will retry for {grace_period} seconds before alerting")
             
             # Check if we're still within grace period
@@ -425,12 +443,16 @@ def main():
                     # Still within grace period - retry without alerting
                     retry_count += 1
                     remaining = grace_period - elapsed
-                    logging.info(f"Grace period: {remaining:.1f} seconds remaining, retrying in {retry_interval} seconds")
-                    time.sleep(retry_interval)
-                    continue  # Try again
+                    
+                    # Don't sleep longer than the remaining grace period
+                    sleep_time = min(retry_interval, remaining)
+                    
+                    logging.info(f"Grace period: {remaining:.1f} seconds remaining, retrying in {sleep_time} seconds")
+                    time.sleep(sleep_time)
+                    continue  # Try again without alerting
                 else:
-                    # Grace period expired - send alert
-                    logging.info(f"Grace period expired after {retry_count} retries, sending alert")
+                    # Grace period expired - send alert and reset
+                    logging.info(f"Grace period expired after {retry_count} retry attempts, sending alert")
                     if not stream_down_in_progress:
                         stream_down_in_progress = 1
                         if streamdown_alerts_hard_disabled:
@@ -438,12 +460,13 @@ def main():
                         else:
                             send_message(f"Stream failure for: {args.stream_uri} (after {retry_count} retry attempts)")
                     
-                    # Reset for next cycle
+                    # Reset grace period for next cycle
                     grace_period_start = None
                     retry_count = 0
             else:
                 # No grace period configured (grace_period == 0) - immediate alert
-                logging.info("No grace period configured, sending immediate alert")
+                if grace_period == 0:
+                    logging.info("No grace period configured, sending immediate alert")
                 if not stream_down_in_progress:
                     stream_down_in_progress = 1
                     if streamdown_alerts_hard_disabled:
@@ -451,7 +474,7 @@ def main():
                     else:
                         send_message(f"Stream failure for: {args.stream_uri}")
         
-        # Long sleep before supervisor restarts us
+        # Long sleep before next retry cycle
         logging.info("Stream death. Retry connect in " + str(CHECK_UPNESS_TIME) + " seconds")
         time.sleep(CHECK_UPNESS_TIME)
         break  # Exit after long sleep to let supervisor restart
