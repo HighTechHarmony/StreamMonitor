@@ -20,6 +20,7 @@ import base64
 import logging
 import re
 import argparse
+import urllib.request
 from datetime import datetime
 from PIL import Image
 import io
@@ -324,6 +325,33 @@ if args.stream_uri:
 else:
     logging.error("FATAL: Stream URI is required. Monitor thread exiting.")
     sys.exit()
+
+
+def resolve_stream_uri(uri):
+    """
+    If the URI points to a .m3u playlist, fetch it and return the first
+    real stream URL found inside it.  Returns the original URI on any
+    failure or if the URI is not a .m3u file.
+    """
+    if not uri.lower().endswith('.m3u'):
+        return uri
+    logging.info("URI ends with .m3u - fetching playlist to resolve real stream URL")
+    try:
+        req = urllib.request.Request(uri, headers={'User-Agent': 'StreamMonitor/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            content = response.read().decode('utf-8', errors='ignore')
+        for line in content.splitlines():
+            line = line.strip()
+            if line and not line.startswith('#'):
+                logging.info(f"Resolved .m3u URI '{uri}' -> '{line}'")
+                return line
+        logging.warning("No usable stream URL found in .m3u playlist; using original URI")
+    except Exception as e:
+        logging.warning(f"Failed to fetch/parse .m3u playlist ({uri}): {e}; using original URI")
+    return uri
+
+
+stream = resolve_stream_uri(stream)
 
 
 # Define the FFMPEG stream monitor command
