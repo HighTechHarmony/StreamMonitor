@@ -116,7 +116,7 @@ def main():
                         # See if it should be
                         if i["enabled"] == "1":            
                             print ("Enabled = 1, action: start\r\n")
-                            restart_monitor(i["uri"],i["title"],i["audio"] == "1")
+                            restart_monitor(i["uri"],i["title"],i["audio"] == "1", i.get("streamId"))
                         else:
                             print ("Enabled = 0, action: none\r\n")
                 else:
@@ -183,7 +183,7 @@ def kill_all_monitors():
 
 
 # starting a missing monitor
-def restart_monitor(stream_uri, stream_desc, audio_only=0):
+def restart_monitor(stream_uri, stream_desc, audio_only=0, stream_id=None):
     # Connect to the necessary database collections
     dbname = get_database()
     stream_configs_collection = dbname[stream_configs_collection_name]
@@ -206,6 +206,12 @@ def restart_monitor(stream_uri, stream_desc, audio_only=0):
     for i in result:
         # If there is an actual pushover key, and notification is enabled...
         if len(str(i["pushover_id"])) > 0 and i["enabled"] == "1":         
+            # Check per-stream subscription: if the user has a non-empty subscribed_streams
+            # list, only include them if this stream's streamId is in that list.
+            subscribed = i.get("subscribed_streams", [])
+            if stream_id and len(subscribed) > 0 and stream_id not in subscribed:
+                print ("Skipping " + str(i["pushover_id"]) + " - not subscribed to stream " + str(stream_id))
+                continue
             pushover_list.append(" --pushover ")
             # If the pushover_token is not empty, append it to the pushover_id
             if len(str(i["pushover_token"])) > 0:
