@@ -1,6 +1,8 @@
-[submodule "StreamMonitor_React_UI"]
-	path = StreamMonitor_React_UI
-	url = https://github.com/HighTechHarmony/StreamMonitor_React_UI
 [submodule "StreamMonitor_Express_API"]
 	path = StreamMonitor_Express_API
-	url = https://github.com/HighTechHarmony/StreamMonitor_Express_API
+	url = https://github.com/HighTechHarmony/StreamMonitor_Express_API/tree/3c7e806f7b76350fe88cc3ba5b627a672b803500
+        ignore = untracked
+[submodule "StreamMonitor_React_UI"]
+	path = StreamMonitor_React_UI
+	url = https://github.com/HighTechHarmony/StreamMonitor_React_UI/tree/465dd47acbf6de6af8dec03c42b64dbdb64b0c1b
+        ignore = untracked
