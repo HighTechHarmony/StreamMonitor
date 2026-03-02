@@ -487,25 +487,25 @@ def main():
                             logging.info("Skipping alert, stream down alerts are hard-disabled by configuration.")
                         else:
                             send_message(f"Stream failure for: {args.stream_uri} (after {retry_count} retry attempts)")
-                    
-                    # Reset grace period for next cycle
-                    grace_period_start = None
-                    retry_count = 0
+                
+                # Reset grace period for next cycle
+                grace_period_start = None
+                retry_count = 0
+                # Now do the long sleep and exit
+                logging.info("Stream death. Retry connect in " + str(CHECK_UPNESS_TIME) + " seconds")
+                time.sleep(CHECK_UPNESS_TIME)
+                break
             else:
-                # No grace period configured (grace_period == 0) - immediate alert
-                if grace_period == 0:
-                    logging.info("No grace period configured, sending immediate alert")
+                # No grace period configured
                 if not stream_down_in_progress:
                     stream_down_in_progress = 1
                     if streamdown_alerts_hard_disabled:
                         logging.info("Skipping alert, stream down alerts are hard-disabled by configuration.")
                     else:
                         send_message(f"Stream failure for: {args.stream_uri}")
-        
-        # Long sleep before next retry cycle
-        logging.info("Stream death. Retry connect in " + str(CHECK_UPNESS_TIME) + " seconds")
-        time.sleep(CHECK_UPNESS_TIME)
-        break  # Exit after long sleep to let supervisor restart
+                logging.info("Stream death. Retry connect in " + str(CHECK_UPNESS_TIME) + " seconds")
+                time.sleep(CHECK_UPNESS_TIME)
+                break
 
 
 ################################################################################
